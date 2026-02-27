@@ -845,7 +845,7 @@ const defaultPlanCards = [
                 </div>`).join('');
         }
 		
-        function renderBlockView(b) {
+function renderBlockView(b) {
             if (b.type === 'badge') {
                 return `<div class="space-y-2">` + b.items.map(item => `
                     <div class="flex items-start">
@@ -858,12 +858,10 @@ const defaultPlanCards = [
                                     const isNaver = url.includes('naver.com') || url.includes('naver.me');
                                     const isGoogle = url.includes('google.com') || url.includes('goo.gl');
                                     
-                                    // 自動帶入 NAVER 中文參數
                                     if (isNaver && !url.includes('language=')) {
                                         url += (url.includes('?') ? '&' : '?') + 'language=zh';
                                     }
 
-                                    // 判斷按鈕顏色與圖示
                                     let btnClass = "bg-white/70 text-gray-700 border-gray-300";
                                     let icon = "<i class='fas fa-link mr-1'></i>";
                                     if (isNaver) {
@@ -887,20 +885,35 @@ const defaultPlanCards = [
                 return `<div class="grid gap-1 text-[11px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">${b.rows.flatMap(r => r).map(cell => `<div class="bg-gray-50 border p-1 rounded text-center break-words">${cell}</div>`).join('')}</div>`;
             } else if (b.type === 'text') {
                 return `<p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed break-words">${b.text}</p>`;
+            } else if (b.type === 'split') {
+                return `<div class="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-3 mt-2 hide-scrollbar w-full">
+                    ${b.routes.map(r => {
+                        let content = r.text || '';
+                        content = content.replace(/(https?:\/\/[^\s\)]+)/g, match => {
+                            let url = match;
+                            let isNaver = url.includes('naver');
+                            let isGoogle = url.includes('google') || url.includes('goo.gl');
+                            if (isNaver && !url.includes('language=')) url += (url.includes('?') ? '&' : '?') + 'language=zh';
+                            let btnClass = isNaver ? 'bg-[#03C75A] text-white border-transparent' : (isGoogle ? 'bg-[#4285F4] text-white border-transparent' : 'bg-white text-gray-700 border-gray-300');
+                            let icon = isNaver ? 'fa-map-pin' : (isGoogle ? 'fa-google' : 'fa-external-link-alt');
+                            let label = isNaver ? 'Naver導航' : (isGoogle ? 'Google導航' : '開啟連結');
+                            return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold shadow-sm active:scale-95 transition-transform mt-1.5 mr-1.5"><i class="fas ${icon} mr-1"></i>${label}</a>`;
+                        });
+                        return `
+                        <div class="snap-center shrink-0 w-[85%] p-4 rounded-xl shadow-sm flex flex-col h-full border border-black/5 relative overflow-hidden" style="background-color: ${toHex(r.style)};">
+                            <div class="absolute -right-3 -top-3 text-6xl opacity-[0.04] pointer-events-none"><i class="fas fa-route"></i></div>
+                            <div class="flex items-center mb-2.5 border-b border-black/5 pb-2 relative z-10">
+                                <span class="text-[11px] px-2 py-0.5 rounded-md mr-2 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5" style="color: ${toHex(r.textColor)};">${r.badge}</span>
+                                <span class="text-sm font-bold truncate pr-4" style="color: ${toHex(r.titleColor)};">${r.title}</span>
+                            </div>
+                            <div class="text-xs leading-relaxed whitespace-pre-wrap flex-1 relative z-10" style="color: ${toHex(r.titleColor)};">${content}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="text-[10px] text-gray-400 text-center font-bold mt-0.5 animate-pulse flex justify-center items-center gap-2">
+                    <i class="fas fa-chevron-left text-[8px]"></i> 左右滑動查看不同方案 <i class="fas fa-chevron-right text-[8px]"></i>
+                </div>`;
             }
-			else if (b.type === 'split') {
-            return `<div class="grid grid-cols-2 gap-2 mt-2">
-                ${b.routes.map(r => `
-                    <div class="p-3 rounded-lg border border-black/5 shadow-sm flex flex-col h-full" style="background-color: ${toHex(r.style)};">
-                        <div class="flex items-center mb-2 border-b border-black/5 pb-1.5">
-                            <span class="text-[10px] px-1.5 py-0.5 rounded mr-1.5 shrink-0 border border-black/5 font-bold" style="background-color: ${toHex(r.style)}; color: ${toHex(r.textColor)}; filter: brightness(0.95);">${r.badge}</span>
-                            <span class="text-sm font-bold truncate" style="color: ${toHex(r.titleColor)};">${r.title}</span>
-                        </div>
-                        <p class="text-[11px] leading-relaxed whitespace-pre-wrap flex-1 opacity-90" style="color: ${toHex(r.titleColor)};">${r.text}</p>
-                    </div>
-                `).join('')}
-            </div>`;
-			}
             return '';
         }
 
@@ -1066,7 +1079,7 @@ window.moveCard = function(tab, id, dir) {
         window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
         window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
 
-        window.renderBlocksEditor = function() {
+		window.renderBlocksEditor = function() {
             const container = document.getElementById('info-edit-blocks-container');
             container.innerHTML = editState.blocks.map((b, idx) => `
                 <div class="bg-white border border-gray-300 rounded overflow-hidden shadow-sm">
@@ -1128,11 +1141,6 @@ window.moveCard = function(tab, id, dir) {
                                     <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">文字顏色</span>${colorPaletteHTML(b.textColor||'#333333', `ub(${idx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                 </div>
                                 
-                                <div class="mt-1">
-                                    <span class="text-[10px] font-bold text-gray-500 block mb-1">選擇圖示</span>
-                                    ${typeof emojiPickerHtml !== 'undefined' ? emojiPickerHtml(idx, b.icon) : ''}
-                                </div>
-                                
                                 <textarea oninput="ub(${idx}, 'text', this.value)" rows="5" placeholder="提醒內容" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>
                             </div>
                         ` : b.type === 'grid' ? `
@@ -1148,14 +1156,14 @@ window.moveCard = function(tab, id, dir) {
                             </div>
                         ` : b.type === 'split' ? `
                             <div class="space-y-2">
-                                <span class="text-[11px] font-bold text-[#0369a1]"><i class="fas fa-columns mr-1"></i>左右分流路線設定</span>
+                                <span class="text-[11px] font-bold text-[#0369a1]"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
                                 <div class="grid grid-cols-2 gap-2">
                                     ${b.routes.map((r, rIdx) => `
                                         <div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5">
-                                            <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">路線 ${rIdx === 0 ? '1 (左)' : '2 (右)'}</div>
+                                            <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">滑動卡片 ${rIdx + 1}</div>
                                             <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value)" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
                                             <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value)" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value)" rows="3" placeholder="行程說明..." class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">${r.text}</textarea>
+                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value)" rows="5" placeholder="行程與交通說明...&#10;(★直接貼上網址會自動變按鈕★)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
                                             
                                             <div class="space-y-1 mt-2 border-t border-gray-100 pt-1.5">
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
@@ -1170,7 +1178,7 @@ window.moveCard = function(tab, id, dir) {
                     </div>
                 </div>`).join('');
         }
-
+		
         window.fetchWeather = async function() {
             renderWeatherContainer(true);
             document.getElementById('weather-update-time').innerText = "更新中...";

@@ -142,7 +142,6 @@
     </nav>
 
     <main class="max-w-md mx-auto px-4 mt-6" id="main-content">
-	<button onclick="planCardsData=defaultPlanCards; infoCardsData=defaultInfoCards; saveCardsToStorage('plan'); saveCardsToStorage('info'); alert('完整資訊修復成功！已永久存入雲端！'); this.remove();" class="w-full bg-[#4285F4] text-white text-lg font-bold py-4 mb-4 rounded-xl shadow-lg z-50">🚨 點我修復詳細資訊與雙導航</button>        <!-- TAB: PLAN (行程) -->
         <section id="tab-plan" class="tab-content">
             <div class="flex justify-between items-center mb-6 border-b border-gray-300 pb-2">
                 <h2 id="title-plan" contenteditable="true" onblur="saveTitle('plan', this.innerText)" class="text-2xl font-serif text-gray-900 font-bold editable-title">每日行程安排</h2>

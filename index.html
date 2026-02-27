@@ -142,8 +142,7 @@
     </nav>
 
     <main class="max-w-md mx-auto px-4 mt-6" id="main-content">
-
-        <!-- TAB: PLAN (行程) -->
+	<button onclick="planCardsData=defaultPlanCards; infoCardsData=defaultInfoCards; saveCardsToStorage('plan'); saveCardsToStorage('info'); alert('完整資訊修復成功！已永久存入雲端！'); this.remove();" class="w-full bg-[#4285F4] text-white text-lg font-bold py-4 mb-4 rounded-xl shadow-lg z-50">🚨 點我修復詳細資訊與雙導航</button>        <!-- TAB: PLAN (行程) -->
         <section id="tab-plan" class="tab-content">
             <div class="flex justify-between items-center mb-6 border-b border-gray-300 pb-2">
                 <h2 id="title-plan" contenteditable="true" onblur="saveTitle('plan', this.innerText)" class="text-2xl font-serif text-gray-900 font-bold editable-title">每日行程安排</h2>
@@ -430,7 +429,10 @@
 
     <!-- 卡片編輯器 Modal -->
 	<div id="info-modal" class="fixed inset-0 bg-black/60 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-gray-50 rounded-lg border border-gray-300 w-full max-w-md shadow-2xl flex flex-col max-h-[85dvh]">                <h3 class="font-bold text-gray-900 text-lg">編輯區塊內容</h3>
+        <div class="bg-gray-50 rounded-xl border border-gray-300 w-full max-w-md shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden">
+            
+            <div class="bg-white px-4 py-3 border-b border-gray-200 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-gray-900 text-lg">編輯區塊內容</h3>
                 <button onclick="closeInfoModal()" class="text-gray-500 hover:text-gray-800 transition p-1"><i class="fas fa-times text-xl"></i></button>
             </div>
             
@@ -455,14 +457,13 @@
                 </div>
             </div>
 
-            <div class="bg-white px-4 py-3 border-t border-gray-200 rounded-b-lg flex justify-between items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] shrink-0">
+            <div class="bg-white px-4 py-3 border-t border-gray-200 flex justify-between items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] shrink-0">
                 <button onclick="deleteCurrentInfoCard()" class="text-sm text-red-600 font-bold hover:text-red-800 px-2 py-1">刪除卡片</button>
                 <button onclick="saveInfoCard()" class="text-sm bg-gray-900 text-white px-6 py-2 rounded font-bold shadow-md hover:bg-black transition">儲存變更</button>
             </div>
-            
-        </div>
-    </div> 
-
+        </div> 
+    </div>
+	
     <script>
         // --- 雲端與基本變數定義 ---
         let editState = null;
@@ -528,66 +529,66 @@
         };
 
         // --- ★ 預設資料 ★ ---
-        const defaultPlanCards = [
+const defaultPlanCards = [
             { id: 'p1', title: 'Day 1：5/22 (五) 啟程與抵達', icon: 'fa-plane-arrival', color: '#0369a1', blocks: [
                 { type: 'badge', items: [{ style: '#e0f2fe', textColor: '#0369a1', titleColor: '#0369a1', badge: '20:00', title: '飛往韓國 (桃園 -> 仁川)', details: [{text: '✈️ 台灣虎航 IT602'}, {text: '⏳ 飛行時間約 2.5 小時'}] }] },
                 { type: 'alert', style: '#fce7f3', textColor: '#9d174d', icon: '🚨', text: '23:30 抵達仁川機場 (ICN)\n【重要集合時間】領完行李後請於入境大廳「包車處集合」，逾時不候！' },
-                { type: 'badge', items: [{ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '01:00', title: '入住 亨德飯店 (Hound Hotel)', details: [{text: '🚇 交通：雲西站 1號出口'}, {text: '🕒 住宿資訊：入住 15:00 / 退房 12:00'}, {text: 'https://maps.app.goo.gl/r5YmY6bC6hQvWJbV7', isLink: true, linkName: '飯店地圖'}] }] }
+                { type: 'badge', items: [{ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '01:00', title: '入住 亨德飯店 (Hound Hotel)', details: [{text: '🚇 交通：雲西站 1號出口 (站內設有手扶梯/大型電梯)'}, {text: '🕒 住宿資訊：入住 15:00 / 退房 12:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=Hound+Hotel+Incheon+Airport', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/Hound%20Hotel%20Incheon%20Airport', isLink: true, linkName: 'Naver導航'}] }] }
             ]},
             { id: 'p2', title: 'Day 2：5/23 (六) 換匯、江南與聖水洞', icon: 'fa-shopping-bag', color: '#4b5563', blocks: [
                 { type: 'alert', style: '#fef9c3', textColor: '#a16207', icon: '💡', text: '早上退房後，帶著台幣直奔弘大！\n先去地鐵站寄放行李，接著馬上去換韓幣，才有現金可以吃喝玩樂！' },
                 { type: 'badge', items: [
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '09:30', title: '弘大入口站 行李寄放 (T-Luggage)', details: [{text: '🚇 交通：搭乘機場快線(AREX)從雲西直達弘大入口站'}, {text: '🧳 營業時間：09:00~22:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=T-Luggage+Hongik+University+Station', isLink: true, linkName: '寄物櫃地圖'}] },
-                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '10:00', title: '弘大換錢所 (台幣換韓元)', details: [{text: '🚶 交通：從 T-Luggage 步行出發前往商圈換匯所'}, {text: '🏪 換錢所營業時間：通常 10:00~21:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=Money+Exchange+Hongdae', isLink: true, linkName: '換錢所地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Hongik+University+Station&destination=Money+Exchange+Hongdae&travelmode=walking', isLink: true, linkName: '導航：前往換匯'}] },
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '11:30', title: '早午餐：mmn 17 (江南區廳站)', details: [{text: '🚇 交通：弘大入口站 ➔ 江南區廳站 | 地鐵約 45分'}, {text: '🏪 營業時間：10:00~19:00'}, {text: '⏳ 建議停留：1.5 小時'}, {text: 'https://maps.app.goo.gl/uicHvVsibb24QQjs9', isLink: true, linkName: '餐廳地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Hongik+University+Station&destination=mmn+17+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往餐廳'}] },
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '13:30', title: '聖水洞 (咖啡廳與商圈逛街)', details: [{text: '🚇 交通：江南區廳站 ➔ 聖水站 | 轉車約 20分'}, {text: '⏳ 建議停留：3 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Seongsu-dong+Seoul', isLink: true, linkName: '聖水洞地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=mmn+17+Seoul&destination=Seongsu-dong+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往聖水洞'}] },
-                    { style: '#fce7f3', textColor: '#be185d', titleColor: '#9d174d', badge: '17:00', title: '晚餐：馬場洞韓牛村', details: [{text: '🚇 交通：聖水站 ➔ 馬場站 | 地鐵約 20分'}, {text: '🏪 營業時間：11:00~23:00'}, {text: '⏳ 建議停留：2 小時 (不吃牛也有豬肉可選)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Majang+Meat+Market+Seoul', isLink: true, linkName: '馬場洞地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Seongsu-dong+Seoul&destination=Majang+Meat+Market+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往馬場洞'}] },
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '19:30', title: '弘大商圈逛街 & 取行李', details: [{text: '🚇 交通：馬場站 ➔ 弘大入口站 | 地鐵約 35分'}, {text: '⏳ 建議停留：2.5 小時 (記得 22:00 前要去拿行李喔！)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Hongdae+Seoul', isLink: true, linkName: '弘大地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Majang+Meat+Market+Seoul&destination=Hongdae+Station+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往弘大'}] },
-                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '22:30', title: '入住 松川站 Airbnb', details: [{text: '🕒 住宿資訊：已達 16:00 可隨時自助入住 / 退房 11:00'}, {text: 'https://map.naver.com/p/entry/place/18605514', isLink: true, linkName: 'Naver地址地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Hongik+University+Station&destination=Solsam+Station+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往民宿'}] }
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '09:30', title: '弘大入口站 行李寄放 (T-Luggage)', details: [{text: '🚇 交通：搭乘機場快線(AREX)從雲西直達弘大入口站 (轉乘通道有大型電梯)'}, {text: '🧳 營業時間：09:00~22:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=T-Luggage+Hongik+University+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/T-Luggage%20홍대입구역', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '10:00', title: '弘大換錢所 (台幣換韓元)', details: [{text: '🚶 交通：從 T-Luggage 步行出發 (約走 5-10 分鐘)'}, {text: '🏪 換錢所營業時間：通常 10:00~21:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=Hongdae+Money+Exchange', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/홍대%20환전소', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '11:30', title: '早午餐：mmn 17 (江南區廳站)', details: [{text: '🚇 交通：弘大入口站 ➔ 江南區廳站 | 地鐵約 45分 (3號出口有手扶梯/2號有電梯)'}, {text: '🏪 營業時間：10:00~19:00'}, {text: '⏳ 建議停留：1.5 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=mmn+Seoul+Cafe', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/mmn%20강남구청', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '13:30', title: '聖水洞 (咖啡廳與商圈逛街)', details: [{text: '🚇 交通：江南區廳站 ➔ 聖水站 | 轉車約 20分 (3號/4號出口有電梯與手扶梯)'}, {text: '⏳ 建議停留：3 小時 (逛街拍照行程)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Seongsu-dong+cafe+street', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/성수동%20카페거리', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#fce7f3', textColor: '#be185d', titleColor: '#9d174d', badge: '17:00', title: '晚餐：馬場洞韓牛村', details: [{text: '🚇 交通：聖水站 ➔ 馬場站 | 地鐵約 20分 (2號出口有電梯)'}, {text: '🏪 營業時間：11:00~23:00'}, {text: '⏳ 建議停留：2 小時 (不吃牛也有豬肉可選)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Majang+Meat+Market', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/마장동%20축산물시장', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '19:30', title: '弘大商圈逛街 & 取行李', details: [{text: '🚇 交通：馬場站 ➔ 弘大入口站 | 地鐵約 35分 (9號出口人多，8號有電梯)'}, {text: '⏳ 建議停留：2.5 小時 (記得 22:00 前要去拿行李喔！)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Hongdae+Seoul', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/홍대입구역', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '22:30', title: '入住 松川站 Airbnb', details: [{text: '🚇 交通：搭至松川站 (2號出口有電梯，步行5分鐘)'}, {text: '🕒 住宿資訊：已達 16:00 可隨時自助入住 / 退房 11:00'}, {text: 'https://www.google.com/maps/search/?api=1&query=Solsam+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/솔샘역', isLink: true, linkName: 'Naver導航'}] }
                 ]}
             ]},
             { id: 'p3', title: 'Day 3：5/24 (日) 樂天樂園與梨泰院', icon: 'fa-ticket-alt', color: '#14532d', blocks: [
                 { type: 'badge', items: [
-                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '10:00', title: '樂天遊樂園 (Lotte World)', details: [{text: '🚇 交通：松川站 ➔ 蠶室站 | 地鐵約 55分'}, {text: '🏪 營業時間：10:00~21:00'}, {text: '⏳ 建議停留：4~5 小時 (視排隊狀況)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Lotte+World+Seoul', isLink: true, linkName: '樂天樂園地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Solsam+Station+Seoul&destination=Lotte+World+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往樂天'}] },
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '15:30', title: '首爾站 樂天超市 & 樂天Outlets', details: [{text: '🚇 交通：蠶室站 ➔ 首爾站 | 地鐵約 45分'}, {text: '🏪 超市營業時間：10:00~24:00'}, {text: '⏳ 建議停留：2.5 小時 (大採購行程)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Lotte+Outlets+Seoul+Station', isLink: true, linkName: '樂天超市地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Lotte+World+Seoul&destination=Lotte+Outlets+Seoul+Station&travelmode=transit', isLink: true, linkName: '導航：前往首爾站'}] },
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '19:00', title: '晚餐：17哥烤肉店 (梨泰院)', details: [{text: '🚇 交通：首爾站 ➔ 梨泰院站 | 地鐵約 25分'}, {text: '🏪 營業時間：16:00~23:00'}, {text: '⏳ 建議停留：2 小時'}, {text: 'https://maps.app.goo.gl/RjfU1iKv7tvXoE5f6', isLink: true, linkName: '餐廳地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Lotte+Outlets+Seoul+Station&destination=Itaewon+Station+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往梨泰院'}] }
+                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '10:00', title: '樂天遊樂園 (Lotte World)', details: [{text: '🚇 交通：松川站 ➔ 蠶室站 | 地鐵約 55分 (3號/4號出口地下連通道直達，免出站吹風)'}, {text: '🏪 營業時間：10:00~21:00'}, {text: '⏳ 建議停留：4~5 小時 (視排隊狀況)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Lotte+World+Seoul', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/롯데월드', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '15:30', title: '首爾站 樂天超市 & 樂天Outlets', details: [{text: '🚇 交通：蠶室站 ➔ 首爾站 | 地鐵約 45分 (1號出口搭乘手扶梯直達超市門口)'}, {text: '🏪 超市營業時間：10:00~24:00'}, {text: '⏳ 建議停留：2.5 小時 (大採購行程)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Lotte+Mart+Seoul+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/롯데마트%20서울역점', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '19:00', title: '晚餐：17哥烤肉店 (梨泰院)', details: [{text: '🚇 交通：首爾站 ➔ 梨泰院站 | 地鐵約 25分 (1號出口有電梯)'}, {text: '🏪 營業時間：16:00~23:00'}, {text: '⏳ 建議停留：2 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Itaewon+BBQ', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/이태원%20고기집', isLink: true, linkName: 'Naver導航'}] }
                 ]}
             ]},
             { id: 'p4', title: 'Day 4：5/25 (一) 市場美食與購物', icon: 'fa-utensils', color: '#9d174d', blocks: [
                 { type: 'badge', items: [
-                    { style: '#fce7f3', textColor: '#be185d', titleColor: '#9d174d', badge: '11:00', title: '早午餐：紫蘇油拌麵 (阿峴站)', details: [{text: '🚇 交通：松川站 ➔ 阿峴站(Ahyeon) | 地鐵約 40分'}, {text: '🏪 營業時間：11:30~21:00 (平日下午 15:00-17:00 休息)'}, {text: '⏳ 建議停留：1 小時'}, {text: 'https://maps.app.goo.gl/pFfqsMLs3Q84v1oJ9', isLink: true, linkName: '餐廳地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Solsam+Station+Seoul&destination=Ahyeon+Station+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往阿峴'}] },
-                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '13:00', title: '京東市場 (Gyeongdong Market)', details: [{text: '🚇 交通：阿峴站 ➔ 祭基洞站 | 地鐵約 25分'}, {text: '🏪 營業時間：08:30~18:00'}, {text: '⏳ 建議停留：2 小時 (可吃安東湯麵 / 逛星巴克京東1960)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Gyeongdong+Market+Seoul', isLink: true, linkName: '京東市場地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Ahyeon+Station+Seoul&destination=Gyeongdong+Market+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往京東市場'}] },
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '18:00', title: '晚餐：利特推薦餐廳 (보배반점)', details: [{text: '🚇 交通：從市場步行或搭公車前往'}, {text: '🏪 營業時間：11:30~22:00'}, {text: '⏳ 建議停留：1.5 小時'}, {text: 'https://maps.app.goo.gl/RbD2sWq7PoijnUv98', isLink: true, linkName: '餐廳地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Gyeongdong+Market+Seoul&destination=Bobae+Banjeom+Seoul&travelmode=transit', isLink: true, linkName: '導航：前往利特餐廳'}] }
+                    { style: '#fce7f3', textColor: '#be185d', titleColor: '#9d174d', badge: '11:00', title: '早午餐：紫蘇油拌麵 (阿峴站)', details: [{text: '🚇 交通：松川站 ➔ 阿峴站(Ahyeon) | 地鐵約 40分 (1號出口旁有手扶梯/電梯)'}, {text: '🏪 營業時間：11:30~21:00 (平日下午 15:00-17:00 休息)'}, {text: '⏳ 建議停留：1 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Ahyeon+Station+Noodles', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/아현역%20막국수', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '13:00', title: '京東市場 (Gyeongdong Market)', details: [{text: '🚇 交通：阿峴站 ➔ 祭基洞站 | 地鐵約 25分 (2號出口有電梯/手扶梯)'}, {text: '🏪 營業時間：08:30~18:00'}, {text: '⏳ 建議停留：2 小時 (可吃安東湯麵 / 逛星巴克京東1960)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Gyeongdong+Market', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/경동시장', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '18:00', title: '晚餐：利特推薦餐廳 (보배반점)', details: [{text: '🚇 交通：從市場步行或搭公車前往'}, {text: '🏪 營業時間：11:30~22:00'}, {text: '⏳ 建議停留：1.5 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Bobae+Banjum', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/보배반점', isLink: true, linkName: 'Naver導航'}] }
                 ]}
             ]},
             { id: 'p5', title: 'Day 5：5/26 (二) 啟程前往釜山', icon: 'fa-train', color: '#8E7358', blocks: [
                 { type: 'alert', style: '#fce7f3', textColor: '#9d174d', icon: '🚨', text: '【跨城市移動注意】\n今日需帶著所有行李搭乘 KTX 前往釜山，請預留 30 分鐘於首爾車站找月台，避免錯過班次。' },
                 { type: 'badge', items: [
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '10:00', title: '搭乘 KTX (首爾 ➔ 釜山)', details: [{text: '🚇 交通：首爾車站搭乘 | 車程約 2.5 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Seoul+Station', isLink: true, linkName: '首爾站地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Solsam+Station+Seoul&destination=Seoul+Station&travelmode=transit', isLink: true, linkName: '導航：前往首爾站'}] },
-                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '14:00', title: '釜山海雲台 Airbnb 放行李', details: [{text: '🚇 交通：釜山站 ➔ 海雲台站 | 地鐵約 50分'}, {text: '🕒 住宿資訊：入住 16:00 / 退房 12:00 (可先寄存行李)'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Busan+Station&destination=Haeundae+Station+Busan&travelmode=transit', isLink: true, linkName: '導航：前往海雲台'}] },
-                    { style: '#d0e8f2', textColor: '#0369a1', titleColor: '#0369a1', badge: '16:00', title: '釜山 X the Sky 觀景台', details: [{text: '👟 交通：從海雲台步行約 15分'}, {text: '🏪 營業時間：10:00~21:00'}, {text: '⏳ 建議停留：1.5 小時 (100樓絕美海景)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Busan+X+the+Sky', isLink: true, linkName: '觀景台地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Haeundae+Station+Busan&destination=Busan+X+the+Sky&travelmode=walking', isLink: true, linkName: '導航：前往 X the Sky'}] },
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '18:30', title: '晚餐：海雲台傳統市場', details: [{text: '👟 交通：步行 1 分鐘即可抵達'}, {text: '🏪 營業時間：09:00~22:00'}, {text: '⏳ 建議停留：2 小時 (盲鰻、糖餅、各種小吃)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Market', isLink: true, linkName: '海雲台市場地圖'}] }
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '10:00', title: '搭乘 KTX (首爾 ➔ 釜山)', details: [{text: '🚇 交通：首爾車站搭乘 | 車程約 2.5 小時 (站內有多部大型電梯)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Seoul+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/서울역', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '14:00', title: '釜山海雲台 Airbnb 放行李', details: [{text: '🚇 交通：釜山站 ➔ 海雲台站 | 地鐵約 50分 (3號/5號出口有電梯與手扶梯)'}, {text: '🕒 住宿資訊：入住 16:00 / 退房 12:00 (可先寄存行李)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/해운대역', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#d0e8f2', textColor: '#0369a1', titleColor: '#0369a1', badge: '16:00', title: '釜山 X the Sky 觀景台', details: [{text: '👟 交通：從海雲台步行約 15分'}, {text: '🏪 營業時間：10:00~21:00'}, {text: '⏳ 建議停留：1.5 小時 (100樓絕美海景)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Busan+X+the+Sky', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/부산엑스더스카이', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '18:30', title: '晚餐：海雲台傳統市場', details: [{text: '👟 交通：步行 1 分鐘即可抵達'}, {text: '🏪 營業時間：09:00~22:00'}, {text: '⏳ 建議停留：2 小時 (盲鰻、糖餅、各種小吃)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Traditional+Market', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/해운대%20전통시장', isLink: true, linkName: 'Naver導航'}] }
                 ]}
             ]},
             { id: 'p6', title: 'Day 6：5/27 (三) 釜山海陸空分流之旅', icon: 'fa-ship', color: '#0369a1', blocks: [
                 { type: 'badge', items: [
-                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '10:00', title: '海雲台膠囊列車 (Blue Line Park)', details: [{text: '👟 交通：尾浦站搭乘 (需先上網預約)'}, {text: '🏪 營業時間：09:30~19:00'}, {text: '⏳ 建議停留：搭乘單程約 30分 + 拍照'}, {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Blue+Line+Park+Mipo', isLink: true, linkName: '尾浦站地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Haeundae+Station+Busan&destination=Haeundae+Blue+Line+Park+Mipo+Station&travelmode=walking', isLink: true, linkName: '導航：前往尾浦站'}] },
-                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '12:30', title: 'Skyline Luge 馬力歐賽車 & 購物', details: [{text: '🚇 交通：從青沙浦或搭公車/計程車前往奧西利亞(Osiria)'}, {text: '🏪 營業時間：10:00~19:00'}, {text: '⏳ 建議停留：4 小時 (Luge + 樂天超市/Outlets)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Skyline+Luge+Busan', isLink: true, linkName: 'Luge地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Haeundae+Blue+Line+Park&destination=Skyline+Luge+Busan&travelmode=transit', isLink: true, linkName: '導航：前往 Luge'}] }
+                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '10:00', title: '海雲台膠囊列車 (Blue Line Park)', details: [{text: '👟 交通：尾浦站搭乘 (需先上網預約)'}, {text: '🏪 營業時間：09:30~19:00'}, {text: '⏳ 建議停留：搭乘單程約 30分 + 拍照'}, {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Blue+Line+Park+Mipo+Station', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/해운대%20블루라인파크%20미포정거장', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '12:30', title: 'Skyline Luge 釜山斜坡滑車', details: [{text: '🚇 交通：從青沙浦或搭公車/計程車前往奧西利亞(Osiria)站 (1號出口)'}, {text: '🏪 營業時間：10:00~19:00'}, {text: '⏳ 建議停留：4 小時 (Luge + 樂天超市/Outlets)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Skyline+Luge+Busan', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/스카이라인루지%20부산', isLink: true, linkName: 'Naver導航'}] }
                 ]},
                 { type: 'alert', style: '#e0f2fe', textColor: '#0369a1', icon: '🔀', text: '【下午分流彈性行程】\n逛完 Outlets 後，大家可依自身喜好兵分兩路，晚上再集合搭遊艇！' },
                 { type: 'badge', items: [
-                    { style: '#f3e8ff', textColor: '#6b21a8', titleColor: '#581c87', badge: 'A組', title: 'Spa Land 汗蒸幕 (Centum City)', details: [{text: '🚇 交通：搭車至 Centum City 站'}, {text: '🏪 營業時間：09:00~22:00'}, {text: '⏳ 建議停留：2.5 小時 (體驗羊角頭雞蛋與熱療)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Spa+Land+Centum+City', isLink: true, linkName: 'Spa Land地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Lotte+Premium+Outlets+Dongbusan&destination=Spa+Land+Centum+City&travelmode=transit', isLink: true, linkName: '導航：前往 Spa Land'}] },
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: 'B組', title: '廣安里海景咖啡廳放空', details: [{text: '🚇 交通：搭車至 廣安站 或 金蓮山站'}, {text: '⏳ 建議停留：2.5 小時 (找間順眼的咖啡廳看橋)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Gwangalli+Beach+Cafe', isLink: true, linkName: '廣安里地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Lotte+Premium+Outlets+Dongbusan&destination=Gwangalli+Beach&travelmode=transit', isLink: true, linkName: '導航：前往廣安里'}] },
+                    { style: '#f3e8ff', textColor: '#6b21a8', titleColor: '#581c87', badge: 'A組', title: 'Spa Land 汗蒸幕 (Centum City)', details: [{text: '🚇 交通：搭車至 Centum City 站 (12號出口地下連通手扶梯)'}, {text: '🏪 營業時間：09:00~22:00'}, {text: '⏳ 建議停留：2.5 小時 (體驗羊角頭雞蛋與熱療)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Spa+Land+Centum+City', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/스파랜드%20센텀시티', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: 'B組', title: '廣安里海景咖啡廳放空', details: [{text: '🚇 交通：搭車至 廣安站 或 金蓮山站 (皆有電梯/手扶梯)'}, {text: '⏳ 建議停留：2.5 小時 (找間順眼的咖啡廳看橋)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Gwangalli+Beach+Cafe', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/광안리', isLink: true, linkName: 'Naver導航'}] },
                 ]},
                 { type: 'badge', items: [
-                    { style: '#111827', textColor: '#ffffff', titleColor: '#111827', badge: '集合', title: '鑽石灣遊艇夜遊 (Diamond Bay)', details: [{text: '🚕 交通：A、B組各自搭車前往遊艇碼頭會合'}, {text: '🏪 航班時間：通常為 19:30 或 20:30'}, {text: '⏳ 建議停留：船程約 50分'}, {text: 'https://www.google.com/maps/search/?api=1&query=Diamond+Bay+Yacht+Busan', isLink: true, linkName: '遊艇碼頭地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Spa+Land+Centum+City&destination=Diamond+Bay+Busan&travelmode=transit', isLink: true, linkName: '導航：前往鑽石灣'}] }
+                    { style: '#111827', textColor: '#ffffff', titleColor: '#111827', badge: '集合', title: '鑽石灣遊艇夜遊 (Diamond Bay)', details: [{text: '🚕 交通：A、B組各自搭車前往遊艇碼頭會合'}, {text: '🏪 航班時間：通常為 19:30 或 20:30'}, {text: '⏳ 建議停留：船程約 50分'}, {text: 'https://www.google.com/maps/search/?api=1&query=Diamond+Bay+Busan', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/다이아몬드베이', isLink: true, linkName: 'Naver導航'}] }
                 ]}
             ]},
             { id: 'p7', title: 'Day 7：5/28 (四) 松島美景與平安賦歸', icon: 'fa-plane-departure', color: '#4b5563', blocks: [
                 { type: 'badge', items: [
-                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '10:30', title: '松島海上纜車 (Songdo Cable Car)', details: [{text: '🚇 交通：海雲台 ➔ 南浦站 轉公車/計程車'}, {text: '🏪 營業時間：09:00~20:00'}, {text: '⏳ 建議停留：1.5 小時 (水晶車廂看海)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Songdo+Marine+Cable+Car', isLink: true, linkName: '纜車地圖'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Haeundae+Station+Busan&destination=Songdo+Marine+Cable+Car&travelmode=transit', isLink: true, linkName: '導航：前往松島'}] },
-                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '13:00', title: '松島雷射槍競技場', details: [{text: '👟 交通：位於纜車站周邊或岩南公園內'}, {text: '⏳ 建議停留：1.5 小時'}, {text: 'https://www.google.com/maps/search/?api=1&query=Songdo+Busan', isLink: true, linkName: '松島周邊地圖'}] },
-                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '17:30', title: '前往 金海國際機場 (PUS)', details: [{text: '🚇 交通：搭乘地鐵/輕軌或包車前往機場'}, {text: 'https://www.google.com/maps/dir/?api=1&origin=Songdo+Beach+Busan&destination=Gimhae+International+Airport&travelmode=transit', isLink: true, linkName: '導航：前往金海機場'}] }
+                    { style: '#e0f2fe', textColor: '#0284c7', titleColor: '#0369a1', badge: '10:30', title: '松島海上纜車 (Songdo Cable Car)', details: [{text: '🚇 交通：海雲台 ➔ 南浦站 (8號出口有電梯) 轉公車/計程車'}, {text: '🏪 營業時間：09:00~20:00'}, {text: '⏳ 建議停留：1.5 小時 (水晶車廂看海)'}, {text: 'https://www.google.com/maps/search/?api=1&query=Songdo+Marine+Cable+Car', isLink: true, linkName: 'Google導航'}, {text: 'https://map.naver.com/v5/search/송도해상케이블카', isLink: true, linkName: 'Naver導航'}] },
+                    { style: '#fef9c3', textColor: '#a16207', titleColor: '#854d0e', badge: '13:00', title: '松島雷射槍競技場', details: [{text: '👟 交通：位於纜車站周邊或岩南公園內'}, {text: '⏳ 建議停留：1.5 小時'}] },
+                    { style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '17:30', title: '前往 金海國際機場 (PUS)', details: [{text: '🚇 交通：搭乘地鐵/輕軌或包車前往金海機場 (沙上站轉乘輕軌有大型電梯)'}] }
                 ]},
                 { type: 'alert', style: '#fce7f3', textColor: '#9d174d', icon: '✈️', text: '回程班機資訊：\n21:05 釜山起飛 ➔ 22:50 抵達台灣桃園\n請務必於 18:30 前抵達機場辦理退稅與報到手續！' }
             ]}
@@ -624,29 +625,33 @@
                         {text: '🕒 入住時間：15:00 | 退房時間：12:00'},
                         {text: '🥐 免費早餐時間：06:00 ~ 10:00'},
                         {text: '🛏️ 設施：電梯 / 吹風機'},
-                        {text: '🚇 地鐵：雲西站(Unseo)步行5分鐘'},
-                        {text: 'https://www.google.com/maps/place/Hound+Hotel+Incheon+Airport/@37.4940485,126.4904046,17z/data=!4m9!3m8!1s0x357b85001fadf1ab:0x794aa6c118c961cd!5m2!4m1!1i2!8m2!3d37.4944583!4d126.4917473!16s%2Fg%2F11m5g7ykly', isLink: true, linkName: '飯店地址地圖'},
+                        {text: '🚇 地鐵：雲西站(Unseo) 1號出口步行5分鐘 (設有電梯/手扶梯)'},
+                        {text: 'https://www.google.com/maps/search/?api=1&query=Hound+Hotel+Incheon+Airport', isLink: true, linkName: 'Google導航'},
+                        {text: 'https://map.naver.com/v5/search/Hound%20Hotel%20Incheon%20Airport', isLink: true, linkName: 'Naver導航'},
                         {text: 'https://www.agoda.com/zh-tw/incheon-airport-hotel-queen_7/hotel/incheon-kr.html', isLink: true, linkName: 'Agoda訂房網址'}
                     ]},
-                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '5/23 (六)', title: '首爾住宿', details: [
+                    { style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: '5/23 (六)', title: '首爾住宿 (松川站)', details: [
                         {text: '🕒 入住時間：16:00 | 退房時間：11:00'},
                         {text: '🛏️ 設施：電梯 / 洗衣機 / 烘衣機 / 吹風機'},
-                        {text: '🚇 地鐵：松川站(Solsam)2號出口步行5分鐘'},
+                        {text: '🚇 地鐵：松川站(Solsam)2號出口步行5分鐘 (2號出口有電梯)'},
                         {text: '📌 備註：可寄放行李 / 自助入住 | 需安靜時段：22:00 ~ 07:00'},
-                        {text: 'https://map.naver.com/p/entry/place/18605514', isLink: true, linkName: 'Naver地址地圖'},
+                        {text: 'https://www.google.com/maps/search/?api=1&query=Solsam+Station', isLink: true, linkName: 'Google導航'},
+                        {text: 'https://map.naver.com/v5/search/솔샘역', isLink: true, linkName: 'Naver導航'},
                         {text: 'https://www.airbnb.com.tw/rooms/1220064098724409526', isLink: true, linkName: 'Airbnb訂房網址'}
                     ]},
-                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '5/27 (三)', title: '釜山住宿', details: [
+                    { style: '#dcfce7', textColor: '#15803d', titleColor: '#14532d', badge: '5/27 (三)', title: '釜山住宿 (海雲台站)', details: [
                         {text: '🕒 入住時間：16:00 | 退房時間：12:00'},
                         {text: '🛏️ 設施：電梯 / 洗衣機 / 吹風機'},
-                        {text: '🚇 地鐵：海雲台站3號出口'},
+                        {text: '🚇 地鐵：海雲台站3號出口 (3號/5號皆有手扶梯與電梯)'},
                         {text: '📌 備註：可寄放行李 / 自助入住'},
-                        {text: 'https://www.google.com/maps/place/%EC%97%98%EB%B3%B8%EB%8D%94%EC%8A%A4%ED%85%8C%EC%9D%B4%EA%B1%B4%EB%AC%BC/@35.162167,129.1607545,20.75z', isLink: true, linkName: 'Google地址地圖'},
+                        {text: 'https://www.google.com/maps/search/?api=1&query=Haeundae+Station', isLink: true, linkName: 'Google導航'},
+                        {text: 'https://map.naver.com/v5/search/해운대역', isLink: true, linkName: 'Naver導航'},
                         {text: 'https://www.airbnb.com.tw/rooms/1364104568778915783', isLink: true, linkName: 'Airbnb訂房網址'},
                         {text: 'https://theplace34-eng.my.canva.site/engver', isLink: true, linkName: '房屋手冊'}
                     ]}
                 ]}
             ]},
+            
 			{ id: 'c_entry2026', title: '2026韓國電子入境卡(e-Arrival Card)', icon: 'fa-passport', color: '#0369a1', blocks: [
                 { type: 'alert', style: '#fef9c3', textColor: '#a16207', icon: '🚨', text: '填寫時間：抵達韓國前72 小時內，務必完成。\n費用：完全免費！（要刷卡的是詐騙）。\n注意事項： 強制線上填寫，飛機上不發放紙本入境卡，一定先填好！' },
                 { type: 'badge', items: [
@@ -848,11 +853,34 @@
                         <div class="text-[10px] px-2 py-0.5 rounded mr-3 mt-0.5 border border-black/5 shrink-0" style="background-color: ${toHex(item.style)}; color: ${toHex(item.textColor)};">${item.badge}</div>
                         <div class="flex-1 w-full overflow-hidden">
                             <p class="text-sm font-bold break-words" style="color: ${toHex(item.titleColor)};">${item.title}</p>
-                            ${item.details ? `<div class="mt-1 flex flex-col gap-1">` + item.details.map(d => 
-                                d.isLink && d.text ? `<a href="${d.text}" target="_blank" class="text-[10px] bg-white/70 text-gray-700 px-2 py-1 rounded border border-black/10 inline-block font-bold truncate w-fit max-w-full hover:bg-gray-100">🔗 ${d.linkName||'網址'}</a>` 
-                                : (d.text ? `<p class="text-[11px] text-gray-700 break-words whitespace-pre-wrap">${d.text}</p>` : '')
+							${item.details ? `<div class="mt-1.5 flex flex-wrap gap-1.5">` + item.details.map(d => 
+                                d.isLink && d.text ? (function(){
+                                    let url = d.text;
+                                    const isNaver = url.includes('naver.com') || url.includes('naver.me');
+                                    const isGoogle = url.includes('google.com') || url.includes('goo.gl');
+                                    
+                                    // 自動帶入 NAVER 中文參數
+                                    if (isNaver && !url.includes('language=')) {
+                                        url += (url.includes('?') ? '&' : '?') + 'language=zh';
+                                    }
+
+                                    // 判斷按鈕顏色與圖示
+                                    let btnClass = "bg-white/70 text-gray-700 border-gray-300";
+                                    let icon = "<i class='fas fa-link mr-1'></i>";
+                                    if (isNaver) {
+                                        btnClass = "bg-[#03C75A] text-white border-transparent";
+                                        icon = "<i class='fas fa-map-pin mr-1'></i>";
+                                    } else if (isGoogle) {
+                                        btnClass = "bg-[#4285F4] text-white border-transparent";
+                                        icon = "<i class='fab fa-google mr-1'></i>";
+                                    }
+
+                                    const label = d.linkName || "網址";
+                                    return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold truncate w-fit max-w-full shadow-sm active:scale-95 transition-transform hover:opacity-90">${icon}${label}</a>`;
+                                })()
+                                : (d.text ? `<p class="text-[11px] text-gray-700 w-full break-words whitespace-pre-wrap mb-0.5">${d.text}</p>` : '')
                             ).join('') + `</div>` : ''}
-                        </div>
+							</div>
                     </div>`).join('') + `</div>`;
             } else if (b.type === 'alert') {
                 return `<div class="p-3 rounded border text-xs flex items-start border-black/5 shadow-sm" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">${b.icon ? `<span class="mr-2 text-base">${b.icon}</span>` : ''}<div class="whitespace-pre-wrap flex-1 leading-relaxed break-words">${b.text}</div></div>`;

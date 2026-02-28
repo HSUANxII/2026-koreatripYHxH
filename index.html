@@ -69,8 +69,17 @@
         .muji-card { background: var(--muji-white); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .nav-btn { border-bottom: 2px solid transparent; transition: all 0.2s; }
         .nav-active { color: var(--muji-accent); border-bottom-color: var(--muji-accent); }
-        button { transition: transform 0.1s ease; }
-        button:active { transform: scale(0.95); }
+		/* ★ 全面升級網頁版按鍵回饋 ★ */
+        button, .nav-btn, a[class*="bg-"], label[class*="cursor-pointer"] { 
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); 
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active, .nav-btn:active, a[class*="bg-"]:active, label[class*="cursor-pointer"]:active { 
+            transform: scale(0.92); 
+            filter: brightness(0.92);
+        }
+        /* 確保計算機維持更強烈的專屬回饋 */
+        .calc-btn:active { transform: scale(0.85) !important; filter: brightness(0.9) !important; }
 		/* 升級版計算機按鍵回饋感與防連按放大 */
         .calc-btn { 
             background: #FFFFFF; 

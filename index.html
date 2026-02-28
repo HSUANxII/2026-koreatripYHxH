@@ -184,7 +184,7 @@
                     <div class="flex items-center space-x-2">
                         <span class="text-[10px] text-gray-500 font-normal" id="weather-update-time">讀取中...</span>
                         <button onclick="openWeatherSettings()" class="text-gray-400 hover:text-[#0284c7] p-1.5 rounded transition"><i class="fas fa-cog"></i></button>
-                        <button onclick="fetchWeather()" class="text-gray-400 hover:text-gray-800 p-1.5 rounded-full bg-gray-50 active:bg-gray-200"><i class="fas fa-sync-alt"></i></button>
+                        <button onclick="fetchWeather(true)" class="text-gray-400 hover:text-gray-800 p-1.5 rounded-full bg-gray-50 active:bg-gray-200"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </h3>
                 <div class="flex flex-nowrap overflow-x-auto gap-3 pb-2 hide-scrollbar" id="weather-container">
@@ -412,16 +412,16 @@
     </div>
 
     <!-- 天氣面板設定 Modal -->
-    <div id="weather-settings-modal" class="fixed inset-0 bg-black/60 z-[500] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closeWeatherSettings()">
+	<div id="weather-settings-modal" class="fixed inset-0 bg-black/60 z-[500] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closeWeatherSettings()">
         <div class="bg-white rounded-xl w-full max-w-[340px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onclick="event.stopPropagation()">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
                 <h3 class="font-bold text-gray-900 text-base"><i class="fas fa-cog mr-2 text-gray-500"></i>天氣面板設定</h3>
-                <button onclick="closeWeatherSettings()" class="text-gray-500 text-lg w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="closeWeatherSettings()" class="text-gray-500 hover:text-gray-900 text-xl w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full transition"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto space-y-3 bg-gray-100" id="weather-settings-list"></div>
+            <div class="p-4 overflow-y-auto space-y-3 bg-gray-100 flex-1" id="weather-settings-list"></div>
         </div>
     </div>
-
+	
     <!-- 圖片大圖 Modal -->
     <div id="photo-modal" class="fixed inset-0 bg-black/90 z-[200] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closePhotoModal()">
         <img id="photo-modal-img" src="" class="max-w-full max-h-[80vh] object-contain rounded">
@@ -1295,15 +1295,38 @@ const defaultPlanCards = [
                 </div>`).join('');
         }
 		
-        window.fetchWeather = async function() {
+		window.fetchWeather = async function(force = false) {
+            // 1. 記憶魔法：如果不強制更新，且距離上次不到 30 分鐘，直接秒開！
+            if (!force) {
+                const cachedData = localStorage.getItem('korea_weather_cache');
+                const cachedTime = localStorage.getItem('korea_weather_time');
+                if (cachedData && cachedTime && (Date.now() - parseInt(cachedTime) < 30 * 60 * 1000)) {
+                    weatherGlobalData = JSON.parse(cachedData);
+                    renderWeatherContainer(false);
+                    const d = new Date(parseInt(cachedTime));
+                    document.getElementById('weather-update-time').innerText = `更新於 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    return;
+                }
+            }
+
             renderWeatherContainer(true);
             document.getElementById('weather-update-time').innerText = "更新中...";
             try {
-                // 改為迴圈分次抓取，解決多座標陣列 API 容易報錯的問題
-                const promises = weatherLocs.map(loc =>
-                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=temperature_2m,precipitation_probability,weather_code&timezone=auto&forecast_days=2`).then(res => res.json())
-                );
-                weatherGlobalData = await Promise.all(promises);
+                // 2. 合併請求魔法：將多個地點的經緯度組合，只發出 1 次請求！
+                const lats = weatherLocs.map(loc => loc.lat).join(',');
+                const lons = weatherLocs.map(loc => loc.lon).join(',');
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=temperature_2m,precipitation_probability,weather_code&timezone=auto&forecast_days=2`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                // Open-Meteo API：單筆回傳 Object，多筆回傳 Array，我們統一轉成 Array
+                weatherGlobalData = Array.isArray(data) ? data : [data];
+                
+                // 將新抓到的資料存入記憶體
+                localStorage.setItem('korea_weather_cache', JSON.stringify(weatherGlobalData));
+                localStorage.setItem('korea_weather_time', Date.now().toString());
+
                 renderWeatherContainer(false);
                 const n = new Date();
                 document.getElementById('weather-update-time').innerText = `更新於 ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
@@ -1313,7 +1336,7 @@ const defaultPlanCards = [
                 renderWeatherContainer(false, true);
             }
         }
-
+		
         window.renderWeatherContainer = function(isLoading, isError = false) {
             const c = document.getElementById('weather-container');
             c.innerHTML = weatherLocs.map((loc, i) => {
@@ -1356,51 +1379,122 @@ const defaultPlanCards = [
         window.closeWeatherDetail = function() { document.getElementById('weather-detail-modal').classList.add('hidden'); document.getElementById('weather-detail-modal').classList.remove('flex'); }
 
         window.openWeatherSettings = function() { renderWeatherSettingsList(); document.getElementById('weather-settings-modal').classList.remove('hidden'); document.getElementById('weather-settings-modal').classList.add('flex'); }
-        window.closeWeatherSettings = function() { document.getElementById('weather-settings-modal').classList.add('hidden'); document.getElementById('weather-settings-modal').classList.remove('flex'); fetchWeather(); }
-        
-        window.renderWeatherSettingsList = function() {
+		window.closeWeatherSettings = function() { document.getElementById('weather-settings-modal').classList.add('hidden'); document.getElementById('weather-settings-modal').classList.remove('flex'); fetchWeather(true); }        
+		window.renderWeatherSettingsList = function() {
             const c = document.getElementById('weather-settings-list');
-            c.innerHTML = weatherLocs.map((loc, i) => `
-                <div class="bg-white border border-gray-200 rounded p-4 shadow-sm">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="font-bold text-gray-800"><i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>${loc.name}</span>
-                        <div class="flex space-x-2">
-                            <button onclick="moveWeatherLoc(${i}, -1)" class="p-1 px-2 text-gray-500 bg-gray-50 hover:bg-gray-200 rounded border border-gray-200 transition"><i class="fas fa-arrow-up text-xs"></i></button>
-                            <button onclick="moveWeatherLoc(${i}, 1)" class="p-1 px-2 text-gray-500 bg-gray-50 hover:bg-gray-200 rounded border border-gray-200 transition"><i class="fas fa-arrow-down text-xs"></i></button>
-                        </div>
-                    </div>
-                    
-                    <!-- 天氣卡片預覽區塊 -->
-                    <div class="mb-4">
-                        <span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase tracking-wider">樣式預覽 Preview</span>
-                        <div class="w-full flex justify-center py-3 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                             <div class="w-[115px] p-3 rounded flex flex-col items-center text-center shadow-sm border border-black/5" style="background-color: ${loc.color}">
-                                <span class="text-[10px] font-bold text-gray-800 mb-1 opacity-70">${loc.name}</span>
-                                <div class="text-xl my-1">☀️</div>
-                                <div class="text-sm font-bold text-gray-900 mt-0.5">24°C</div>
-                                <div class="text-[9px] text-gray-700 font-bold mt-1.5 bg-white/50 px-1.5 py-1 rounded w-full truncate border border-black/5">👕 短袖+薄外套</div>
-                             </div>
-                        </div>
-                    </div>
+            
+            let addHtml = '<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 shadow-sm relative">' +
+                '<div class="font-bold text-[11px] text-blue-800 mb-2"><i class="fas fa-search-location mr-1"></i>搜尋並新增城市</div>' +
+                '<div class="flex space-x-2">' +
+                    '<input type="text" id="new-loc-name" placeholder="輸入城市名 (例: 東京, Osaka)" class="flex-1 text-xs p-2 border border-blue-200 rounded outline-none font-bold text-gray-800 bg-white shadow-inner">' +
+                    '<button onclick="searchAndAddCity()" id="btn-add-city" class="bg-blue-600 text-white px-3 py-2 rounded text-[11px] font-bold shadow-sm hover:bg-blue-700 transition active:scale-95 shrink-0">搜尋新增</button>' +
+                '</div>' +
+            '</div>';
 
-                    <div>
-                        <span class="text-[10px] font-bold text-gray-500 block mb-1">更換背景色</span>
-                        ${colorPaletteHTML(loc.color, `updateWeatherColor(${i}, '$$VAL$$')`)}
-                    </div>
-                </div>
-            `).join('');
+            let listHtml = weatherLocs.map((loc, i) => {
+                // ★ 抓取真實天氣資料來替換預設的 24度 ★
+                let tempStr = "--°C";
+                let iconStr = "⏳";
+                let clothStr = "讀取中...";
+                
+                if (typeof weatherGlobalData !== 'undefined' && weatherGlobalData[i] && weatherGlobalData[i].current) {
+                    const cur = weatherGlobalData[i].current;
+                    const temp = Math.round(cur.temperature_2m);
+                    tempStr = temp + "°C";
+                    const w = weatherCodeMap[cur.weather_code] || {icon:'☁️'};
+                    iconStr = w.icon;
+                    clothStr = getClothingSuggestion(temp);
+                }
+
+                return '<div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-3">' +
+                    '<div class="flex justify-between items-center mb-4">' +
+                        '<input type="text" value="' + loc.name + '" onchange="updateWeatherLocData(' + i + ', \'name\', this.value)" class="font-bold text-gray-800 border-b border-gray-300 outline-none bg-transparent pb-0.5 w-1/2 focus:border-blue-500 transition text-base">' +
+                        '<div class="flex space-x-2">' +
+                            '<button onclick="moveWeatherLoc(' + i + ', -1)" class="p-1.5 px-2.5 text-gray-500 bg-gray-50 hover:bg-gray-200 rounded border border-gray-200 transition shadow-sm"><i class="fas fa-arrow-up text-xs"></i></button>' +
+                            '<button onclick="moveWeatherLoc(' + i + ', 1)" class="p-1.5 px-2.5 text-gray-500 bg-gray-50 hover:bg-gray-200 rounded border border-gray-200 transition shadow-sm"><i class="fas fa-arrow-down text-xs"></i></button>' +
+                            '<button onclick="deleteWeatherLoc(' + i + ')" class="p-1.5 px-2.5 text-red-500 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition ml-1 shadow-sm"><i class="fas fa-trash text-xs"></i></button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="mb-4">' +
+                        '<span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase tracking-wider">樣式預覽 Preview</span>' +
+                        '<div class="w-full flex justify-center py-3 bg-gray-50 rounded-lg border border-dashed border-gray-300">' +
+                             '<div class="w-[115px] p-3 rounded flex flex-col items-center text-center shadow-sm border border-black/5" style="background-color: ' + loc.color + '">' +
+                                '<span class="text-[10px] font-bold text-gray-800 mb-1 opacity-70">' + loc.name + '</span>' +
+                                '<div class="text-xl my-1">' + iconStr + '</div>' +
+                                '<div class="text-sm font-bold text-gray-900 mt-0.5">' + tempStr + '</div>' +
+                                '<div class="text-[9px] text-gray-700 font-bold mt-1.5 bg-white/50 px-1.5 py-1 rounded w-full truncate border border-black/5">👕 ' + clothStr + '</div>' +
+                             '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div>' +
+                        '<span class="text-[10px] font-bold text-gray-500 block mb-1">更換背景色</span>' +
+                        colorPaletteHTML(loc.color, "updateWeatherColor(" + i + ", '$$VAL$$')") +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            c.innerHTML = addHtml + listHtml;
         }
+
+        window.searchAndAddCity = async function() {
+            const input = document.getElementById('new-loc-name');
+            const btn = document.getElementById('btn-add-city');
+            const query = input.value.trim();
+            if(!query) { if(typeof showMsg==='function') showMsg('請輸入要搜尋的城市名稱！'); else alert('請輸入城市'); return; }
+            
+            btn.innerText = "搜尋中..."; btn.disabled = true;
+            try {
+                // 自動打 API 幫你把地名轉成經緯度！
+                const res = await fetch("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(query) + "&count=1&language=zh");
+                const data = await res.json();
+                if(data.results && data.results.length > 0) {
+                    const city = data.results[0];
+                    weatherLocs.push({ id: 'loc_' + Date.now(), name: query, lat: city.latitude, lon: city.longitude, color: '#f3f4f6' });
+                    window.saveGlobalState({ weatherLocs: weatherLocs });
+                    
+                    // ★ 成功新增後，立刻去抓最新的真實天氣資料，並更新畫面 ★
+                    await fetchWeather(true); 
+                    renderWeatherSettingsList();
+                    
+                    if(typeof showMsg==='function') showMsg("✅ 成功新增：" + city.name + " (" + city.country + ")");
+                } else {
+                    if(typeof showMsg==='function') showMsg('找不到這個城市，請試著輸入英文或其他關鍵字！(如: Jeju, Osaka)');
+                }
+            } catch(e) {
+                if(typeof showMsg==='function') showMsg('搜尋失敗，請檢查網路連線。');
+            }
+            btn.innerText = "搜尋新增"; btn.disabled = false;
+        }
+
+        window.deleteWeatherLoc = function(idx) {
+            if(confirm("確定要移除「" + weatherLocs[idx].name + "」嗎？")) {
+                weatherLocs.splice(idx, 1);
+                window.saveGlobalState({ weatherLocs: weatherLocs });
+                // ★ 刪除後也同步更新天氣資料，以免錯位 ★
+                fetchWeather(true).then(() => renderWeatherSettingsList());
+            }
+        }
+
+        window.updateWeatherLocData = function(idx, field, val) {
+            weatherLocs[idx][field] = val;
+            window.saveGlobalState({ weatherLocs: weatherLocs });
+            renderWeatherSettingsList();
+        }
+
         window.moveWeatherLoc = function(idx, dir) {
             if(dir===-1 && idx>0) { let t = weatherLocs[idx]; weatherLocs[idx]=weatherLocs[idx-1]; weatherLocs[idx-1]=t; }
             if(dir===1 && idx<weatherLocs.length-1) { let t = weatherLocs[idx]; weatherLocs[idx]=weatherLocs[idx+1]; weatherLocs[idx+1]=t; }
             window.saveGlobalState({ weatherLocs: weatherLocs });
+            // ★ 移動後也同步更新天氣資料，以免錯位 ★
+            fetchWeather(true).then(() => renderWeatherSettingsList()); 
         }
+
         window.updateWeatherColor = function(idx, hex) { 
             weatherLocs[idx].color = hex; 
             window.saveGlobalState({ weatherLocs: weatherLocs });
             renderWeatherSettingsList(); 
         }
-
+		
         // --- ★ 錢包與記帳模組 ★ ---
         window.renderExpColorPicker = function() {
             const container = document.getElementById('exp-color-picker');

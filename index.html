@@ -2527,11 +2527,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSettingsMembers();
             };
 
-            window.removeMember = function(idx) {
-                travelMembers.splice(idx, 1);
-                renderSettingsMembers();
+			window.removeMember = function(idx) {
+                // ★ 加入防誤觸確認視窗 ★
+                if(confirm('確定要移除「' + travelMembers[idx] + '」嗎？\n(注意：如果他已經有記帳紀錄，建議保留喔！)')) {
+                    travelMembers.splice(idx, 1);
+                    renderSettingsMembers();
+                }
             };
-
+			
             window.saveSettings = function() {
                 localStorage.setItem('korea_members_v1', JSON.stringify(travelMembers));
                 if(typeof renderPayerRadios === 'function') renderPayerRadios();

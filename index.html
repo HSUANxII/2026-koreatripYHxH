@@ -2516,23 +2516,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             };
 
-            window.addNewMember = function() {
-                // ★ 抓取新的專屬 ID
+			window.addNewMember = function() {
                 const nameInput = document.getElementById('setting-new-member');
                 const name = nameInput.value.trim();
                 if(!name) return;
-                if(travelMembers.includes(name)) { showMsg('成員已在名單中！'); return; }
+                
+                // 檢查是否重複
+                if(travelMembers.includes(name)) { 
+                    showMsg('❌ 「' + name + '」已經在名單中囉！'); 
+                    return; 
+                }
+                
                 travelMembers.push(name);
                 nameInput.value = '';
                 renderSettingsMembers();
+                
+                // ★ 新增：加入成功後的彈窗提醒 ★
+                showMsg('✅ 已成功將「' + name + '」加入成員名單！');
             };
 
-			window.removeMember = function(idx) {
-                // ★ 加入防誤觸確認視窗 ★
-                if(confirm('確定要移除「' + travelMembers[idx] + '」嗎？\n(注意：如果他已經有記帳紀錄，建議保留喔！)')) {
+            window.removeMember = function(idx) {
+                const name = travelMembers[idx];
+                // ★ 修改：使用自訂的 showMsg 代替系統 confirm，保持風格一致 ★
+                showMsg('確定要移除「' + name + '」嗎？\n(注意：如果他已經有記帳紀錄，建議保留喔！)', true, () => {
                     travelMembers.splice(idx, 1);
                     renderSettingsMembers();
-                }
+                });
             };
 			
             window.saveSettings = function() {

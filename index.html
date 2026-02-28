@@ -413,12 +413,12 @@
 
     <!-- 天氣面板設定 Modal -->
 	<div id="weather-settings-modal" class="fixed inset-0 bg-black/60 z-[500] hidden items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onclick="closeWeatherSettings()">
-        <div class="bg-white rounded-xl w-full max-w-[340px] shadow-2xl overflow-hidden flex flex-col h-[95dvh] sm:h-auto sm:max-h-[85dvh]" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-xl w-full max-w-[340px] shadow-2xl overflow-hidden flex flex-col h-[96%] max-h-[96%] sm:h-auto sm:max-h-[85vh]" onclick="event.stopPropagation()">
             <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
                 <h3 class="font-bold text-gray-900 text-base"><i class="fas fa-cog mr-2 text-gray-500"></i>天氣面板設定</h3>
                 <button onclick="closeWeatherSettings()" class="text-gray-500 hover:text-gray-900 text-xl w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full transition"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto space-y-3 bg-gray-100 flex-1" id="weather-settings-list"></div>
+            <div class="p-4 overflow-y-auto space-y-3 bg-gray-100 flex-1 overscroll-contain" id="weather-settings-list"></div>
         </div>
     </div>
 	
@@ -438,14 +438,14 @@
 
     <!-- 卡片編輯器 Modal -->
 	<div id="info-modal" class="fixed inset-0 bg-black/60 z-[100] hidden items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
-        <div class="bg-gray-50 rounded-xl border border-gray-300 w-full max-w-md shadow-2xl flex flex-col h-[95dvh] sm:h-auto sm:max-h-[85dvh] overflow-hidden">
+        <div class="bg-gray-50 rounded-xl border border-gray-300 w-full max-w-md shadow-2xl flex flex-col h-[96%] max-h-[96%] sm:h-auto sm:max-h-[85vh] overflow-hidden">
             
             <div class="bg-white px-4 py-3 border-b border-gray-200 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-gray-900 text-lg">編輯區塊內容</h3>
                 <button onclick="closeInfoModal()" class="text-gray-500 hover:text-gray-800 transition p-1"><i class="fas fa-times text-xl"></i></button>
             </div>
             
-            <div class="p-4 space-y-5 overflow-y-auto hide-scrollbar flex-1">
+            <div class="p-4 space-y-5 overflow-y-auto hide-scrollbar flex-1 overscroll-contain">
                 <div class="bg-white p-3 rounded border border-gray-200 shadow-sm space-y-3">
 				<div id="info-edit-title-preview" class="mb-3"></div>
                     <div>
@@ -453,7 +453,7 @@
                         <input type="text" id="info-edit-title" oninput="editState.title=this.value; updateInfoModalUI()" class="w-full border border-gray-300 rounded p-2 text-sm font-bold text-gray-900">
                     </div>
                     <div><label class="text-xs font-bold text-gray-700 block mb-1">卡片主色調</label><div id="info-edit-color-picker"></div></div>
-                    <div><label class="text-xs font-bold text-gray-700 block mb-1">標題圖示</label><div class="h-28 overflow-y-auto border border-gray-200 rounded p-2 grid grid-cols-6 gap-2 bg-gray-50 hide-scrollbar" id="info-edit-icon-picker"></div></div>
+                    <div><label class="text-xs font-bold text-gray-700 block mb-1">標題圖示</label><div class="h-28 overflow-y-auto border border-gray-200 rounded p-2 grid grid-cols-6 gap-2 bg-gray-50 hide-scrollbar overscroll-contain" id="info-edit-icon-picker"></div></div>
                 </div>
                 <div id="info-edit-blocks-container" class="space-y-3"></div>
                 

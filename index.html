@@ -214,27 +214,31 @@
                 <div id="calc-display" class="text-right text-2xl font-bold text-gray-900 mb-4 py-2 border-b border-gray-300 min-h-[40px]">₩ 0</div>
                 <div id="calc-result-twd" class="text-right text-sm font-bold text-muji-accent mb-4">≈ NT$ 0</div>
                 
-                <div class="grid grid-cols-4 gap-2 w-full">
+				<div class="grid grid-cols-4 gap-2 w-full">
+                    <button class="calc-btn col-span-2 text-red-600 font-bold bg-red-50 text-base" onclick="clearCalc()">C 清除</button>
+                    <button class="calc-btn bg-gray-100 font-bold text-gray-500" onclick="backspaceCalc()">⌫</button>
+                    <button class="calc-btn bg-[#f0f9ff] text-[#0369a1] font-bold text-xl" onclick="pressKey('/')">÷</button>
+                    
                     <button class="calc-btn font-bold" onclick="pressKey('7')">7</button>
                     <button class="calc-btn font-bold" onclick="pressKey('8')">8</button>
                     <button class="calc-btn font-bold" onclick="pressKey('9')">9</button>
-                    <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('/')">÷</button>
+                    <button class="calc-btn bg-[#f0f9ff] text-[#0369a1] font-bold text-xl" onclick="pressKey('*')">×</button>
+                    
                     <button class="calc-btn font-bold" onclick="pressKey('4')">4</button>
                     <button class="calc-btn font-bold" onclick="pressKey('5')">5</button>
                     <button class="calc-btn font-bold" onclick="pressKey('6')">6</button>
-                    <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('*')">×</button>
+                    <button class="calc-btn bg-[#f0f9ff] text-[#0369a1] font-bold text-xl" onclick="pressKey('-')">-</button>
+                    
                     <button class="calc-btn font-bold" onclick="pressKey('1')">1</button>
                     <button class="calc-btn font-bold" onclick="pressKey('2')">2</button>
                     <button class="calc-btn font-bold" onclick="pressKey('3')">3</button>
-                    <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('-')">-</button>
-                    <button class="calc-btn font-bold" onclick="pressKey('0')">0</button>
+                    <button class="calc-btn bg-[#f0f9ff] text-[#0369a1] font-bold text-xl" onclick="pressKey('+')">+</button>
+                    
+                    <button class="calc-btn col-span-2 font-bold" onclick="pressKey('0')">0</button>
                     <button class="calc-btn font-bold" onclick="pressKey('.')">.</button>
-                    <button class="calc-btn bg-gray-200 font-bold text-red-600" onclick="backspaceCalc()">⌫</button>
-                    <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('+')">+</button>
-                    <button class="calc-btn col-span-2 text-red-700 font-bold bg-red-50" onclick="clearCalc()">C 清除</button>
-                    <button class="calc-btn col-span-2 !bg-gray-800 !text-white font-bold" onclick="evalCalc()">等於 =</button>
+                    <button class="calc-btn !bg-gray-800 !text-white font-bold text-xl" onclick="evalCalc()">=</button>
                 </div>
-            </div>
+			</div>
 			
             <!-- 新增/修改記帳表單 -->
 			<div class="muji-card p-4 mb-4 border border-gray-200 bg-white shadow-sm transition-colors duration-300 scroll-mt-24" id="expense-form-area">

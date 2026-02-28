@@ -373,7 +373,7 @@
                 </h3>
                 <p class="text-[11px] text-[#166534] opacity-90 leading-relaxed relative z-10">
                     這份指南已升級為團隊雲端共用版！<br>
-                    您的記帳、行程與備忘錄都會自動儲存。只要將這個網頁的網址傳給旅伴，大家就能即時看到並編輯最新資料喔！
+                    除了備忘錄已外的所有資訊都會自動儲存。只要將這個網頁的網址傳給旅伴，大家就能即時看到並編輯最新資料喔！
                 </p>
             </div>
         </section>
@@ -443,11 +443,11 @@
             
             <div class="p-4 space-y-5 overflow-y-auto hide-scrollbar flex-1">
                 <div class="bg-white p-3 rounded border border-gray-200 shadow-sm space-y-3">
+				<div id="info-edit-title-preview" class="mb-3"></div>
                     <div>
                         <label class="text-xs font-bold text-gray-700 block mb-1">卡片標題</label>
                         <input type="text" id="info-edit-title" oninput="editState.title=this.value; updateInfoModalUI()" class="w-full border border-gray-300 rounded p-2 text-sm font-bold text-gray-900">
                     </div>
-                    <div id="info-edit-title-preview"></div>
                     <div><label class="text-xs font-bold text-gray-700 block mb-1">卡片主色調</label><div id="info-edit-color-picker"></div></div>
                     <div><label class="text-xs font-bold text-gray-700 block mb-1">標題圖示</label><div class="h-28 overflow-y-auto border border-gray-200 rounded p-2 grid grid-cols-6 gap-2 bg-gray-50 hide-scrollbar" id="info-edit-icon-picker"></div></div>
                 </div>
@@ -851,7 +851,7 @@ const defaultPlanCards = [
                 </div>`).join('');
         }
 		
-function renderBlockView(b) {
+		function renderBlockView(b) {
             if (b.type === 'badge') {
                 return `<div class="space-y-2">` + b.items.map(item => `
                     <div class="flex items-start">
@@ -891,20 +891,54 @@ function renderBlockView(b) {
                 return `<div class="grid gap-1 text-[11px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">${b.rows.flatMap(r => r).map(cell => `<div class="bg-gray-50 border p-1 rounded text-center break-words">${cell}</div>`).join('')}</div>`;
             } else if (b.type === 'text') {
                 return `<p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed break-words">${b.text}</p>`;
-            } else if (b.type === 'split') {
+			} else if (b.type === 'split') {
                 return `<div class="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-3 mt-2 hide-scrollbar w-full">
                     ${b.routes.map(r => {
                         let content = r.text || '';
                         content = content.replace(/(https?:\/\/[^\s\)]+)/g, match => {
                             let url = match;
-                            let isNaver = url.includes('naver');
-                            let isGoogle = url.includes('google') || url.includes('goo.gl');
+                            let isNaver = url.includes('naver'); let isGoogle = url.includes('google') || url.includes('goo.gl');
                             if (isNaver && !url.includes('language=')) url += (url.includes('?') ? '&' : '?') + 'language=zh';
                             let btnClass = isNaver ? 'bg-[#03C75A] text-white border-transparent' : (isGoogle ? 'bg-[#4285F4] text-white border-transparent' : 'bg-white text-gray-700 border-gray-300');
                             let icon = isNaver ? 'fa-map-pin' : (isGoogle ? 'fa-google' : 'fa-external-link-alt');
                             let label = isNaver ? 'Naver導航' : (isGoogle ? 'Google導航' : '開啟連結');
                             return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold shadow-sm active:scale-95 transition-transform mt-1.5 mr-1.5"><i class="fas ${icon} mr-1"></i>${label}</a>`;
                         });
+                        
+                        let detailsHtml = '';
+                        if(r.details && r.details.length > 0) {
+                            detailsHtml = `<div class="mt-1.5 flex flex-wrap gap-1.5 border-t border-black/5 pt-2">` + r.details.map(d => {
+                                if(!d.text) return '';
+                                
+                                let textTrimmed = d.text.trim();
+                                let isOnlyUrl = /^https?:\/\/[^\s]+$/.test(textTrimmed);
+                                
+                                if(d.isLink || isOnlyUrl) {
+                                    let url = textTrimmed;
+                                    const isNaver = url.includes('naver.com') || url.includes('naver.me');
+                                    const isGoogle = url.includes('google.com') || url.includes('goo.gl');
+                                    if (isNaver && !url.includes('language=')) { url += (url.includes('?') ? '&' : '?') + 'language=zh'; }
+                                    let btnClass = "bg-white/70 text-gray-700 border-gray-300"; let icon = "<i class='fas fa-link mr-1'></i>";
+                                    if (isNaver) { btnClass = "bg-[#03C75A] text-white border-transparent"; icon = "<i class='fas fa-map-pin mr-1'></i>"; } 
+                                    else if (isGoogle) { btnClass = "bg-[#4285F4] text-white border-transparent"; icon = "<i class='fab fa-google mr-1'></i>"; }
+                                    const label = d.linkName || (isNaver ? "Naver導航" : (isGoogle ? "Google導航" : "開啟連結"));
+                                    return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold shadow-sm active:scale-95 transition-transform hover:opacity-90"><i class="fas ${icon} mr-1"></i>${label}</a>`;
+                                } else {
+                                    // 情況B：混雜文字 ➜ ★徹底移除黑點點★，並將內文網址自動轉按鈕
+                                    let processedText = d.text.replace(/(https?:\/\/[^\s\)]+)/g, match => {
+                                        let url = match;
+                                        let isNaver = url.includes('naver'); let isGoogle = url.includes('google') || url.includes('goo.gl');
+                                        if (isNaver && !url.includes('language=')) url += (url.includes('?') ? '&' : '?') + 'language=zh';
+                                        let btnClass = isNaver ? 'bg-[#03C75A] text-white border-transparent' : (isGoogle ? 'bg-[#4285F4] text-white border-transparent' : 'bg-white text-gray-700 border-gray-300');
+                                        let icon = isNaver ? 'fa-map-pin' : (isGoogle ? 'fa-google' : 'fa-external-link-alt');
+                                        let label = isNaver ? 'Naver導航' : (isGoogle ? 'Google導航' : '開啟連結');
+                                        return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold shadow-sm active:scale-95 transition-transform mt-1 mb-0.5 mr-1.5 inline-block"><i class="fas ${icon} mr-1"></i>${label}</a>`;
+                                    });
+                                    return `<div class="w-full text-[11px] text-gray-700 break-words whitespace-pre-wrap leading-tight">${processedText}</div>`;
+                                }
+                            }).join('') + `</div>`;
+                        }
+
                         return `
                         <div class="snap-center shrink-0 w-[85%] p-4 rounded-xl shadow-sm flex flex-col h-full border border-black/5 relative overflow-hidden" style="background-color: ${toHex(r.style)};">
                             <div class="absolute -right-3 -top-3 text-6xl opacity-[0.04] pointer-events-none"><i class="fas fa-route"></i></div>
@@ -912,7 +946,10 @@ function renderBlockView(b) {
                                 <span class="text-[11px] px-2 py-0.5 rounded-md mr-2 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5" style="color: ${toHex(r.textColor)};">${r.badge}</span>
                                 <span class="text-sm font-bold truncate pr-4" style="color: ${toHex(r.titleColor)};">${r.title}</span>
                             </div>
-                            <div class="text-xs leading-relaxed whitespace-pre-wrap flex-1 relative z-10" style="color: ${toHex(r.titleColor)};">${content}</div>
+                            <div class="flex-1 relative z-10 flex flex-col">
+                                ${content ? `<div class="text-xs leading-relaxed whitespace-pre-wrap mb-1" style="color: ${toHex(r.titleColor)};">${content}</div>` : ''}
+                                ${detailsHtml}
+                            </div>
                         </div>`;
                     }).join('')}
                 </div>
@@ -922,8 +959,8 @@ function renderBlockView(b) {
             }
             return '';
         }
-
-window.moveCard = function(tab, id, dir) {
+		
+		window.moveCard = function(tab, id, dir) {
             let dataArr = tab === 'plan' ? planCardsData : (tab === 'flight' ? flightCardsData : (tab === 'lists' ? listsCardsData : infoCardsData));
             const idx = dataArr.findIndex(x => x.id === id);
             if (dir === -1 && idx > 0) [dataArr[idx-1], dataArr[idx]] = [dataArr[idx], dataArr[idx-1]];
@@ -951,16 +988,14 @@ window.moveCard = function(tab, id, dir) {
 		const colorPaletteHTML = (currentVal, actionTemplate) => {
             const currentHex = toHex(currentVal).toLowerCase();
             
-            // ★ 防閃退核心：分離資料更新與畫面重繪 ★
+            // ★ 終極防閃退：完全剝離重整畫面的指令，只把顏色存進背後資料 ★
             const safeDataAction = actionTemplate.replace(/;\s*renderBlocksEditor\(\)/g, '').replace(/;\s*updateInfoModalUI\(\)/g, '');
-            const delayRenderAction = `setTimeout(() => { ${actionTemplate.replace('$$VAL$$', `'+this.value+'`)} }, 300)`;
 
             return `
             <div class="flex overflow-x-auto gap-2 py-1 hide-scrollbar w-full items-center pl-1">
                 <div class="relative w-6 h-6 flex-shrink-0 rounded-full overflow-hidden border border-gray-300 shadow-sm" style="background-color: ${currentHex};">
                     <input type="color" value="${currentHex}" 
                         oninput="${safeDataAction.replace('$$VAL$$', `'+this.value+'`)}; this.parentElement.style.backgroundColor=this.value;" 
-                        onchange="${delayRenderAction}" 
                         class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer opacity-0">
                 </div>
                 
@@ -1053,15 +1088,15 @@ window.moveCard = function(tab, id, dir) {
             if (type === 'badge') editState.blocks.push({ type: 'badge', items: [{ style: '#e0f2fe', textColor: '#0369a1', titleColor: '#111827', badge: '標籤', title: '', details: [{text: '', isLink: false, linkName: ''}] }] });
             if (type === 'alert') editState.blocks.push({ type: 'alert', style: '#fef9c3', textColor: '#854d0e', icon: '⚠️', text: '' });
             if (type === 'grid') editState.blocks.push({ type: 'grid', cols: 2, rows: [['項目1', '數值'], ['項目2', '數值']] });
-            if (type === 'text') editState.blocks.push({ type: 'text', text: '' });
+			if (type === 'text') editState.blocks.push({ type: 'text', text: '' });
             if (type === 'split') { 
 				editState.blocks.push({ 
 				type: 'split', 
 				routes: [
-					{ style: '#f3e8ff', textColor: '#6b21a8', titleColor: '#581c87', badge: 'A組', title: '路線A', text: '填寫A組行程...' },
-					{ style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: 'B組', title: '路線B', text: '填寫B組行程...' }
+					{ style: '#f3e8ff', textColor: '#6b21a8', titleColor: '#581c87', badge: 'A組', title: '路線A', text: '填寫A組主要說明...', details: [] },
+					{ style: '#ffedd5', textColor: '#c2410c', titleColor: '#9a3412', badge: 'B組', title: '路線B', text: '填寫B組主要說明...', details: [] }
 				] 
-			}); 
+			    }); 
 			}
 			renderBlocksEditor();
         }
@@ -1095,12 +1130,25 @@ window.moveCard = function(tab, id, dir) {
         window.ugData = function(bIdx, rIdx, cIdx, val) { editState.blocks[bIdx].rows[rIdx][cIdx] = val; }
         window.addBadgeItem = function(idx) { editState.blocks[idx].items.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '', details: [{text: '', isLink: false, linkName: ''}] }); renderBlocksEditor(); }
         window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
-        window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
+		window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
 
-		window.addSplitRoute = function(bIdx) { editState.blocks[bIdx].routes.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '新路線', text: '' }); renderBlocksEditor(); }
+        window.addSplitRoute = function(bIdx) { editState.blocks[bIdx].routes.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '新路線', text: '', details: [] }); renderBlocksEditor(); }
         window.delSplitRoute = function(bIdx, rIdx) { editState.blocks[bIdx].routes.splice(rIdx, 1); renderBlocksEditor(); }
+        
+        // ★ 新增分流卡片專屬的明細操作功能 ★
+        window.addSplitDetail = function(bIdx, rIdx) { 
+            if(!editState.blocks[bIdx].routes[rIdx].details) editState.blocks[bIdx].routes[rIdx].details = [];
+            editState.blocks[bIdx].routes[rIdx].details.push({text: '', isLink: false, linkName: ''}); 
+            renderBlocksEditor(); 
+        }
+        window.delSplitDetail = function(bIdx, rIdx, dIdx) { editState.blocks[bIdx].routes[rIdx].details.splice(dIdx, 1); renderBlocksEditor(); }
+        window.udgSplit = function(bIdx, rIdx, dIdx, field, val) { 
+            const detail = editState.blocks[bIdx].routes[rIdx].details[dIdx]; 
+            if (field === 'isLink') detail.isLink = (val === 'true'); 
+            else detail[field] = val; 
+        }
 
-        window.renderBlocksEditor = function() {
+		window.renderBlocksEditor = function() {
             const container = document.getElementById('info-edit-blocks-container');
             container.innerHTML = editState.blocks.map((b, idx) => `
                 <div class="bg-white border border-gray-300 rounded overflow-hidden shadow-sm">
@@ -1113,7 +1161,7 @@ window.moveCard = function(tab, id, dir) {
                             <div class="space-y-3">
                                 ${b.items.map((it, i) => `
                                     <div class="p-2 border border-gray-200 rounded bg-gray-50 relative pb-3">
-                                        ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, ${i})" class="absolute top-1 right-1 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times text-[10px]"></i></button>` : ''}
+                                        ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, i)" class="absolute top-1 right-1 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times text-[10px]"></i></button>` : ''}
                                         
                                         <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm">
                                             <span class="text-[10px] font-bold text-gray-400 block mb-1 uppercase">樣式預覽 Preview</span>
@@ -1175,34 +1223,59 @@ window.moveCard = function(tab, id, dir) {
                                 `).join('')}
                                 <button onclick="addGridRow(${idx})" class="w-full mt-2 py-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded">+ 新增列</button>
                             </div>
-                        ` : b.type === 'split' ? `
+						` : b.type === 'split' ? `
                             <div class="space-y-2">
                                 <span class="text-[11px] font-bold text-[#0369a1]"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
                                 
                                 <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm overflow-hidden">
                                     <span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase">樣式預覽 Preview (可向右滑動)</span>
                                     <div class="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 hide-scrollbar w-full pointer-events-auto">
-                                        ${b.routes.map(r => `
+                                        ${b.routes.map(r => {
+                                            let dHtml = '';
+											if(r.details && r.details.length > 0) {
+                                                dHtml = '<div class="mt-1.5 flex flex-wrap gap-1 border-t border-black/5 pt-1.5">' + r.details.map(d => {
+                                                    if(!d.text) return '';
+                                                    let textTrimmed = d.text.trim();
+                                                    let isOnlyUrl = /^https?:\/\/[^\s]+$/.test(textTrimmed);
+                                                    if(isOnlyUrl || d.isLink) return '<span class="inline-block bg-white/60 text-gray-800 border border-black/10 px-1.5 py-0.5 rounded text-[9px] w-fit shadow-sm">🔗 導航按鈕</span>';
+                                                    let txt = d.text.replace(/(https?:\/\/[^\s\)]+)/g, '🔗網址');
+                                                    // ★ 已移除預覽區的黑點點
+                                                    return '<div class="w-full text-[9px] text-gray-600 break-words mb-0.5">' + txt + '</div>';
+                                                }).join('') + '</div>';
+                                            }
+                                            return `
                                             <div class="snap-center shrink-0 w-[80%] p-3 rounded-lg shadow-sm flex flex-col border border-black/5 relative overflow-hidden" style="background-color: ${toHex(r.style)};">
                                                 <div class="flex items-center mb-1.5 border-b border-black/5 pb-1.5">
                                                     <span class="text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5" style="color: ${toHex(r.textColor)};">${r.badge || '標籤'}</span>
                                                     <span class="text-xs font-bold truncate pr-2" style="color: ${toHex(r.titleColor)};">${r.title || '短標題'}</span>
                                                 </div>
-                                                <div class="text-[10px] leading-relaxed whitespace-pre-wrap line-clamp-2" style="color: ${toHex(r.titleColor)};">${r.text || '說明內容預覽...'}</div>
-                                            </div>
-                                        `).join('')}
+                                                ${r.text ? `<div class="text-[10px] leading-relaxed whitespace-pre-wrap line-clamp-2" style="color: ${toHex(r.titleColor)};">${r.text}</div>` : ''}
+                                                ${dHtml}
+                                            </div>`;
+                                        }).join('')}
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-2">
                                     ${b.routes.map((r, rIdx) => `
                                         <div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5 relative pb-6">
-                                            ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="absolute top-1 right-1 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times text-[10px]"></i></button>` : ''}
+                                            ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="absolute top-1 right-1 text-red-500 hover:text-red-700 bg-red-50 w-5 h-5 flex items-center justify-center rounded"><i class="fas fa-times text-[10px]"></i></button>` : ''}
                                             <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">滑動卡片 ${rIdx + 1}</div>
                                             <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
                                             <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="4" placeholder="行程與交通說明...&#10;(★直接貼上網址會自動變按鈕★)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
+                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
                                             
+                                            <div class="space-y-1 mt-2 bg-gray-50 p-1.5 rounded border border-gray-200">
+                                                <div class="text-[10px] font-bold text-gray-500 mb-1">📋 明細列 (自動偵測網址)</div>
+                                                ${(r.details||[]).map((d, dIdx) => `
+                                                    <div class="flex items-start space-x-1 mb-1.5 bg-white p-1 rounded border border-gray-200">
+                                                        <textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="內容或貼上網址..." class="flex-1 min-w-0 border-transparent rounded p-1 text-xs font-bold outline-none bg-white leading-relaxed">${d.text||''}</textarea>
+                                                        <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="text-red-400 p-1 shrink-0 hover:bg-red-50 rounded mt-0.5"><i class="fas fa-times-circle text-sm"></i></button>
+                                                    </div>
+                                                `).join('')}
+                                                <button onclick="addSplitDetail(${idx}, ${rIdx})" class="w-full mt-1 py-1.5 text-[10px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition">+ 新增明細列</button>
+                                            </div>
+
                                             <div class="space-y-1 mt-2 border-t border-gray-100 pt-1.5">
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">標籤</span>${colorPaletteHTML(r.textColor, `usplit(${idx}, ${rIdx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
@@ -1211,7 +1284,7 @@ window.moveCard = function(tab, id, dir) {
                                         </div>
                                     `).join('')}
                                 </div>
-                                <button onclick="addSplitRoute(${idx})" class="w-full py-1.5 text-[11px] font-bold text-gray-600 bg-gray-100 border border-dashed border-gray-300 rounded hover:bg-gray-200 transition mt-2">+ 新增一張滑動卡片</button>
+                                <button onclick="addSplitRoute(${idx})" class="w-full py-2 text-[11px] font-bold text-[#0369a1] bg-[#e0f2fe] border border-[#bae6fd] rounded hover:bg-[#bae6fd] transition mt-2">+ 新增一張滑動卡片</button>
                             </div>
                         ` : `<textarea oninput="ub(${idx}, 'text', this.value)" rows="3" placeholder="輸入文字..." class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>`}
                     </div>
@@ -1352,7 +1425,8 @@ window.moveCard = function(tab, id, dir) {
         }
 		
         window.pressKey = function(key) { currentCalc = currentCalc === "0" || currentCalc === "" ? key : currentCalc + key; updateCalcDisplay(); }
-        window.clearCalc = function() { currentCalc = ""; updateCalcDisplay(); }
+		window.clearCalc = function() { currentCalc = ""; updateCalcDisplay(); }
+        window.backspaceCalc = function() { if(currentCalc.length > 0) { currentCalc = currentCalc.slice(0, -1); updateCalcDisplay(); } }
         window.evalCalc = function() { try { currentCalc = String(eval(currentCalc.replace('×','*').replace('÷','/')) || ""); updateCalcDisplay(); } catch(e) { currentCalc = "Error"; updateCalcDisplay(); } }
         window.updateCalcDisplay = function() {
             const r = parseFloat(document.getElementById('base-rate').value) || 41; document.getElementById('calc-display').innerText = currentCalc ? `₩ ${currentCalc}` : "₩ 0";

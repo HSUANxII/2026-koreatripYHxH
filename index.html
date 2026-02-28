@@ -71,27 +71,32 @@
         .nav-active { color: var(--muji-accent); border-bottom-color: var(--muji-accent); }
         button { transition: transform 0.1s ease; }
         button:active { transform: scale(0.95); }
-		/* 升級版計算機按鍵回饋感 */
+		/* 升級版計算機按鍵回饋感與防連按放大 */
         .calc-btn { 
             background: #FFFFFF; 
             border: 1px solid rgba(0,0,0,0.05); 
             padding: 15px; 
             text-align: center;
-            border-radius: 12px; /* 更圓潤的現代感 */
+            border-radius: 12px; 
             font-size: 1.3rem; 
             color: #333333; 
-            box-shadow: 0 2px 0 rgba(0,0,0,0.02); /* 微小投影 */
-            transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1); /* 快速回彈 */
+            box-shadow: 0 2px 0 rgba(0,0,0,0.02);
+            transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            touch-action: manipulation; /* 禁用手機雙擊放大 */
+            -webkit-tap-highlight-color: transparent;
         }
         
         .calc-btn:active { 
-            background: #F2F2F7; /* 淺灰色壓下感 */
-            transform: scale(0.92); /* 縮放回饋 */
-            box-shadow: 0 0 0 rgba(0,0,0,0); /* 陰影消失 */
-            filter: brightness(0.95); /* 微調亮度 */
+            background: #E5E5EA; 
+            transform: scale(0.85); 
+            box-shadow: 0 0 0 rgba(0,0,0,0);
         }
+        
+        .calc-btn.bg-gray-200:active { background: #D1D1D6; }
+        .calc-btn.bg-gray-800:active, .calc-btn.\!bg-gray-800:active { background: #000000 !important; filter: brightness(1.2); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
         
         /* 運算符號按鈕特殊色 */
         .calc-btn.bg-gray-200:active { background: #E5E5EA; }
@@ -191,10 +196,10 @@
         </section>
 
         <!-- TAB: WALLET (記帳) -->
-        <section id="tab-wallet" class="tab-content hidden">
-		<div class="flex justify-between items-center border-b border-gray-300 pb-2 mb-4 w-full">
-				<h2 id="title-wallet" contenteditable="true" onblur="saveTitle('wallet', this.innerText)" class="text-2xl font-serif text-gray-900 font-bold editable-title w-full">換匯與記帳</h2>
-			</div>            
+		<section id="tab-wallet" class="tab-content hidden">
+            <div class="flex justify-between items-center border-b border-gray-300 pb-2 mb-4 w-full">
+                <h2 id="title-wallet" contenteditable="true" onblur="saveTitle('wallet', this.innerText)" class="text-2xl font-serif text-gray-900 font-bold editable-title w-full">換匯與記帳</h2>
+            </div>            
             <div class="muji-card p-4 mb-4 border border-gray-200 mt-2">
                 <div class="flex justify-between items-center mb-2">
                     <div class="flex items-center">
@@ -208,7 +213,8 @@
                 </div>
                 <div id="calc-display" class="text-right text-2xl font-bold text-gray-900 mb-4 py-2 border-b border-gray-300 min-h-[40px]">₩ 0</div>
                 <div id="calc-result-twd" class="text-right text-sm font-bold text-muji-accent mb-4">≈ NT$ 0</div>
-                <div class="grid grid-cols-4 gap-2">
+                
+                <div class="grid grid-cols-4 gap-2 w-full">
                     <button class="calc-btn font-bold" onclick="pressKey('7')">7</button>
                     <button class="calc-btn font-bold" onclick="pressKey('8')">8</button>
                     <button class="calc-btn font-bold" onclick="pressKey('9')">9</button>
@@ -223,12 +229,13 @@
                     <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('-')">-</button>
                     <button class="calc-btn font-bold" onclick="pressKey('0')">0</button>
                     <button class="calc-btn font-bold" onclick="pressKey('.')">.</button>
-                    <button class="calc-btn text-red-700 font-bold" onclick="clearCalc()">C</button>
+                    <button class="calc-btn bg-gray-200 font-bold text-red-600" onclick="backspaceCalc()">⌫</button>
                     <button class="calc-btn bg-gray-200 font-bold" onclick="pressKey('+')">+</button>
-                    <button class="calc-btn col-span-4 !bg-gray-800 !text-white font-bold" onclick="evalCalc()">等於 =</button>
+                    <button class="calc-btn col-span-2 text-red-700 font-bold bg-red-50" onclick="clearCalc()">C 清除</button>
+                    <button class="calc-btn col-span-2 !bg-gray-800 !text-white font-bold" onclick="evalCalc()">等於 =</button>
                 </div>
             </div>
-
+			
             <!-- 新增/修改記帳表單 -->
 			<div class="muji-card p-4 mb-4 border border-gray-200 bg-white shadow-sm transition-colors duration-300 scroll-mt-24" id="expense-form-area">
                 
@@ -266,8 +273,7 @@
                         </div>
                         
                         <div class="flex items-center px-3 py-2.5 border-b border-gray-200">
-                            <select id="exp-category" class="bg-transparent text-sm font-bold text-gray-800 outline-none w-[90px] shrink-0 border-r border-gray-300 pr-2 mr-3" style="text-align-last: center;">
-                                <option value="food" selected>🍽️ 用餐</option>
+						<select id="exp-category" class="bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold text-gray-800 outline-none w-[110px] shrink-0 mr-3 shadow-sm cursor-pointer hover:bg-gray-50 transition" style="text-align-last: center;">                                <option value="food" selected>🍽️ 用餐</option>
                                 <option value="shop">🛍️ 購物</option>
                                 <option value="traffic">🚌 交通</option>
                                 <option value="ticket">🎫 門票</option>
@@ -944,16 +950,28 @@ window.moveCard = function(tab, id, dir) {
 		
 		const colorPaletteHTML = (currentVal, actionTemplate) => {
             const currentHex = toHex(currentVal).toLowerCase();
+            
+            // ★ 防閃退核心：分離資料更新與畫面重繪 ★
+            const safeDataAction = actionTemplate.replace(/;\s*renderBlocksEditor\(\)/g, '').replace(/;\s*updateInfoModalUI\(\)/g, '');
+            const delayRenderAction = `setTimeout(() => { ${actionTemplate.replace('$$VAL$$', `'+this.value+'`)} }, 300)`;
+
             return `
             <div class="flex overflow-x-auto gap-2 py-1 hide-scrollbar w-full items-center pl-1">
-                <input type="color" value="${currentHex}" onchange="${actionTemplate.replace('$$VAL$$', `'+this.value+'`)}" class="w-6 h-6 flex-shrink-0 border border-gray-300 rounded-full shadow-sm bg-transparent p-0 cursor-pointer outline-none">
+                <div class="relative w-6 h-6 flex-shrink-0 rounded-full overflow-hidden border border-gray-300 shadow-sm" style="background-color: ${currentHex};">
+                    <input type="color" value="${currentHex}" 
+                        oninput="${safeDataAction.replace('$$VAL$$', `'+this.value+'`)}; this.parentElement.style.backgroundColor=this.value;" 
+                        onchange="${delayRenderAction}" 
+                        class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer opacity-0">
+                </div>
+                
                 <div class="w-[1px] h-4 bg-gray-300 mx-1 shrink-0"></div>
+                
                 ${morandiColors.map(c => `
                     <button type="button" onclick="${actionTemplate.replace('$$VAL$$', c.hex)}" class="w-6 h-6 rounded-full flex-shrink-0 border flex items-center justify-center transition-transform ${currentHex === c.hex.toLowerCase() ? 'border-gray-800 scale-110 ring-1 ring-gray-400' : 'border-black/10 hover:scale-110'}" style="background-color: ${c.hex};" title="${c.name}"></button>
                 `).join('')}
             </div>`;
         };
-
+		
         window.closeInfoModal = function() { 
             document.getElementById('info-modal').classList.add('hidden'); 
             document.getElementById('info-modal').classList.remove('flex'); 
@@ -1079,7 +1097,10 @@ window.moveCard = function(tab, id, dir) {
         window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
         window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
 
-		window.renderBlocksEditor = function() {
+		window.addSplitRoute = function(bIdx) { editState.blocks[bIdx].routes.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '新路線', text: '' }); renderBlocksEditor(); }
+        window.delSplitRoute = function(bIdx, rIdx) { editState.blocks[bIdx].routes.splice(rIdx, 1); renderBlocksEditor(); }
+
+        window.renderBlocksEditor = function() {
             const container = document.getElementById('info-edit-blocks-container');
             container.innerHTML = editState.blocks.map((b, idx) => `
                 <div class="bg-white border border-gray-300 rounded overflow-hidden shadow-sm">
@@ -1157,13 +1178,30 @@ window.moveCard = function(tab, id, dir) {
                         ` : b.type === 'split' ? `
                             <div class="space-y-2">
                                 <span class="text-[11px] font-bold text-[#0369a1]"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
+                                
+                                <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm overflow-hidden">
+                                    <span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase">樣式預覽 Preview (可向右滑動)</span>
+                                    <div class="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 hide-scrollbar w-full pointer-events-auto">
+                                        ${b.routes.map(r => `
+                                            <div class="snap-center shrink-0 w-[80%] p-3 rounded-lg shadow-sm flex flex-col border border-black/5 relative overflow-hidden" style="background-color: ${toHex(r.style)};">
+                                                <div class="flex items-center mb-1.5 border-b border-black/5 pb-1.5">
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5" style="color: ${toHex(r.textColor)};">${r.badge || '標籤'}</span>
+                                                    <span class="text-xs font-bold truncate pr-2" style="color: ${toHex(r.titleColor)};">${r.title || '短標題'}</span>
+                                                </div>
+                                                <div class="text-[10px] leading-relaxed whitespace-pre-wrap line-clamp-2" style="color: ${toHex(r.titleColor)};">${r.text || '說明內容預覽...'}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
                                 <div class="grid grid-cols-2 gap-2">
                                     ${b.routes.map((r, rIdx) => `
-                                        <div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5">
+                                        <div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5 relative pb-6">
+                                            ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="absolute top-1 right-1 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times text-[10px]"></i></button>` : ''}
                                             <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">滑動卡片 ${rIdx + 1}</div>
-                                            <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value)" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value)" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value)" rows="5" placeholder="行程與交通說明...&#10;(★直接貼上網址會自動變按鈕★)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
+                                            <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
+                                            <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
+                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="4" placeholder="行程與交通說明...&#10;(★直接貼上網址會自動變按鈕★)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
                                             
                                             <div class="space-y-1 mt-2 border-t border-gray-100 pt-1.5">
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
@@ -1173,6 +1211,7 @@ window.moveCard = function(tab, id, dir) {
                                         </div>
                                     `).join('')}
                                 </div>
+                                <button onclick="addSplitRoute(${idx})" class="w-full py-1.5 text-[11px] font-bold text-gray-600 bg-gray-100 border border-dashed border-gray-300 rounded hover:bg-gray-200 transition mt-2">+ 新增一張滑動卡片</button>
                             </div>
                         ` : `<textarea oninput="ub(${idx}, 'text', this.value)" rows="3" placeholder="輸入文字..." class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>`}
                     </div>
@@ -1349,7 +1388,17 @@ window.calcExpTwd = function() {
             };
         }
         window.removeExpPhoto = function() { currentExpBase64 = null; document.getElementById('exp-photo').value = ""; document.getElementById('exp-photo-preview').classList.add('hidden'); }
-
+		// ★ 補齊：照片放大預覽功能 ★
+        window.openPhotoModal = function(src) {
+            document.getElementById('photo-modal-img').src = src;
+            document.getElementById('photo-modal').classList.remove('hidden');
+            document.getElementById('photo-modal').classList.add('flex');
+        }
+        window.closePhotoModal = function() {
+            document.getElementById('photo-modal').classList.add('hidden');
+            document.getElementById('photo-modal').classList.remove('flex');
+        }
+		
         window.editMembers = function() { renderMembersEditList(); document.getElementById('members-modal').classList.remove('hidden'); document.getElementById('members-modal').classList.add('flex'); }
         window.closeMembersModal = function() { document.getElementById('members-modal').classList.add('hidden'); document.getElementById('members-modal').classList.remove('flex'); renderPayerRadios(); renderSplitMembersCheckboxes(); }
         window.renderMembersEditList = function() {
@@ -1806,7 +1855,6 @@ window.exportSettlementCSV = function() {
         return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     };
 
-    // ★ 全面加上細灰邊框
     const bStyle = { 
         top: { style: "thin", color: { rgb: "BDC3C7" } }, bottom: { style: "thin", color: { rgb: "BDC3C7" } }, 
         left: { style: "thin", color: { rgb: "BDC3C7" } }, right: { style: "thin", color: { rgb: "BDC3C7" } } 
@@ -1823,23 +1871,17 @@ window.exportSettlementCSV = function() {
 
     const applySmartFormat = (ws, dataArr, specialRowHeight = {}, disableFilter = false) => {
         if (!ws['!ref']) return;
-        
         let headerRow = dataArr.find(row => row && row.some(cell => cell && typeof cell.v === 'string' && (cell.v.includes("日期/時間") || cell.v.includes("匯率") || cell.v.includes("當日總代墊")))) || dataArr[0];
-        
         let numCols = headerRow.length;
-        if (!disableFilter) {
-            ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(numCols-1)}${dataArr.length}` };
-        }
-        
+        if (!disableFilter) { ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(numCols-1)}${dataArr.length}` }; }
         ws['!rows'] = dataArr.map((_, i) => ({ hpt: specialRowHeight[i] || 25 }));
         
         let colWidths = headerRow.map(cell => {
             let name = cell.v || '';
-            if (name === "日期/時間") return { wch: 21.5 }; // 4.5cm
-            if (name === "分攤成員") return { wch: 51.7 }; // 11cm
-            if (name === "最簡轉帳動作") return { wch: 19 }; // 4.0cm
-            if (["當日總代墊", "當日總應分攤", "當日結餘", "最終總結餘"].includes(name)) return { wch: 14 }; // 3.0cm
-            
+            if (name === "日期/時間") return { wch: 21.5 }; 
+            if (name === "分攤成員") return { wch: 51.7 }; 
+            if (name === "最簡轉帳動作") return { wch: 19 }; 
+            if (["當日總代墊", "當日總應分攤", "當日結餘", "最終總結餘"].includes(name)) return { wch: 14 }; 
             if (name.includes("韓幣金額") || name.includes("台幣金額") || name.includes("代墊金額")) return { wch: 12 };
             if (name.includes("匯率")) return { wch: 7 };
             if (name.includes("消費類別")) return { wch: 9.5 };
@@ -1848,13 +1890,11 @@ window.exportSettlementCSV = function() {
             if (name.includes("帳務明細")) return { wch: 12 };
             if (name.includes("消費名稱")) return { wch: 18 };
             if (name.includes("計算公式")) return { wch: 15 };
-            
             return { wch: 12 }; 
         });
         ws['!cols'] = colWidths;
     };
 
-    // ★ 核心排序：將所有記帳紀錄「由舊到新」排序 (遞增)
     let sortedExpenses = [...expenses].sort((a, b) => (a.rawDate || 0) - (b.rawDate || 0));
 
     // --- 第一頁 [1.歷史消費總表] ---
@@ -1877,16 +1917,16 @@ window.exportSettlementCSV = function() {
         if (ws2_data.length > 0) { ws2_data.push([]); }
 
         let titleRowIdx = ws2_data.length;
+        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws2_data.push([
-            { v: `👤 ${m} 的專屬帳務明細`, t: 's', s: { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, fill: { fgColor: { rgb: "374151" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
-            TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151")
+            { v: `👤 ${m} 的專屬帳務明細`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
+            TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
         ]);
         ws2_merges.push({ s: { r: titleRowIdx, c: 0 }, e: { r: titleRowIdx, c: 7 } }); 
 
         ws2_data.push([HeadCell("成員"), HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("韓幣金額"), HeadCell("台幣金額"), HeadCell("NT$結餘")]);
 
         let mPaid = 0; let mShouldPay = 0;
-        
         let combinedList = [];
         data.paidList.forEach(item => combinedList.push({ type: 'paid', ...item }));
         data.shouldPayList.forEach(item => combinedList.push({ type: 'shouldPay', ...item }));
@@ -1917,17 +1957,11 @@ window.exportSettlementCSV = function() {
     applySmartFormat(ws2, ws2_data, {}, true); 
     XLSX.utils.book_append_sheet(wb, ws2, "2.個人帳務明細");
 
-// --- 第三頁 [3.最簡轉帳法] ---
+    // --- 第三頁 [3.最簡轉帳法] ---
     let ws3_data = [];
     let ws3_merges = [];
     let ws3_heights = {};
-    
-    // ★ 產生每日排序專用的日期字串
-    const getJustDate = (rawDate) => {
-        const d = new Date(rawDate || Date.now());
-        const days = ['日', '一', '二', '三', '四', '五', '六'];
-        return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}(${days[d.getDay()]})`;
-    };
+    const getJustDate = (rawDate) => { const d = new Date(rawDate || Date.now()); const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}(${days[d.getDay()]})`; };
 
     travelMembers.forEach(m => {
         let data = window.currentSettlementData[m];
@@ -1936,26 +1970,18 @@ window.exportSettlementCSV = function() {
         if (ws3_data.length > 0) ws3_data.push([]);
 
         let titleRowIdx = ws3_data.length;
+        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws3_data.push([
-            { v: `👤 ${m} 的最簡轉帳法 (每日結算明細)`, t: 's', s: { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, fill: { fgColor: { rgb: "374151" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
-            TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151")
+            { v: `👤 ${m} 的最簡轉帳法 (每日結算明細)`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
+            TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
         ]);
         ws3_merges.push({ s: { r: titleRowIdx, c: 0 }, e: { r: titleRowIdx, c: 6 } });
 
         ws3_data.push([HeadCell("成員"), HeadCell("日期/時間"), HeadCell("當日總代墊"), HeadCell("當日總應分攤"), HeadCell("當日結餘"), HeadCell("最終總結餘"), HeadCell("最簡轉帳動作")]);
 
-        // ★ 核心修復：計算該成員「每一天」的獨立總和
         let dailyStats = {};
-        data.paidList.forEach(item => {
-            let date = getJustDate(item.rawDate);
-            if(!dailyStats[date]) dailyStats[date] = { paid: 0, share: 0 };
-            dailyStats[date].paid += item.amount;
-        });
-        data.shouldPayList.forEach(item => {
-            let date = getJustDate(item.rawDate);
-            if(!dailyStats[date]) dailyStats[date] = { paid: 0, share: 0 };
-            dailyStats[date].share += item.amount;
-        });
+        data.paidList.forEach(item => { let date = getJustDate(item.rawDate); if(!dailyStats[date]) dailyStats[date] = { paid: 0, share: 0 }; dailyStats[date].paid += item.amount; });
+        data.shouldPayList.forEach(item => { let date = getJustDate(item.rawDate); if(!dailyStats[date]) dailyStats[date] = { paid: 0, share: 0 }; dailyStats[date].share += item.amount; });
 
         let balance = data.paid - data.shouldPay;
         let transfers = [];
@@ -1964,41 +1990,24 @@ window.exportSettlementCSV = function() {
         let transferStr = transfers.length > 0 ? transfers.join('\n') : '🎉 結清'; 
         
         let isFirstRow = true;
-        // 將日期由舊到新排序並逐日列出
         Object.keys(dailyStats).sort().forEach(dateStr => {
             let dStat = dailyStats[dateStr];
             let dBal = dStat.paid - dStat.share;
             
             if (isFirstRow) {
                 if(transfers.length > 1) ws3_heights[ws3_data.length] = transfers.length * 20;
-                ws3_data.push([
-                    TextCell(m), TextCell(dateStr), TWDCell(dStat.paid), TWDCell(dStat.share), 
-                    dBal > 0 ? GreenCell(dBal) : (dBal < 0 ? RedCell(dBal) : TWDCell(0)), 
-                    balance > 0 ? GreenCell(balance) : (balance < 0 ? RedCell(balance) : TWDCell(0)), 
-                    TextCell(transferStr, "FFFFFF", true)
-                ]);
+                ws3_data.push([ TextCell(m), TextCell(dateStr), TWDCell(dStat.paid), TWDCell(dStat.share), dBal > 0 ? GreenCell(dBal) : (dBal < 0 ? RedCell(dBal) : TWDCell(0)), balance > 0 ? GreenCell(balance) : (balance < 0 ? RedCell(balance) : TWDCell(0)), TextCell(transferStr, "FFFFFF", true) ]);
                 isFirstRow = false;
             } else {
-                // 第二天以後的紀錄，右邊的最終結餘和轉帳動作留白，保持畫面乾淨
-                ws3_data.push([
-                    TextCell(m), TextCell(dateStr), TWDCell(dStat.paid), TWDCell(dStat.share), 
-                    dBal > 0 ? GreenCell(dBal) : (dBal < 0 ? RedCell(dBal) : TWDCell(0)), 
-                    TextCell(""), TextCell("")
-                ]);
+                ws3_data.push([ TextCell(m), TextCell(dateStr), TWDCell(dStat.paid), TWDCell(dStat.share), dBal > 0 ? GreenCell(dBal) : (dBal < 0 ? RedCell(dBal) : TWDCell(0)), TextCell(""), TextCell("") ]);
             }
         });
 
         let subtotalRowIdx = ws3_data.length;
         ws3_data.push([
             { v: `💰 ${m} 結算總計`, t: 's', s: { font: { bold: true, color: { rgb: "374151" } }, fill: { fgColor: { rgb: "FEF9C3" } }, alignment: { vertical: "center", horizontal: "right" }, border: bStyle } },
-            TextCell("","FEF9C3"), 
-            TWDCell(data.paid, "FEF9C3"), 
-            TWDCell(data.shouldPay, "FEF9C3"),
-            TextCell("","FEF9C3"), 
-            balance > 0 ? GreenCell(balance, "FEF9C3") : (balance < 0 ? RedCell(balance, "FEF9C3") : TWDCell(0, "FEF9C3")),
-            TextCell("","FEF9C3")
+            TextCell("","FEF9C3"), TWDCell(data.paid, "FEF9C3"), TWDCell(data.shouldPay, "FEF9C3"), TextCell("","FEF9C3"), balance > 0 ? GreenCell(balance, "FEF9C3") : (balance < 0 ? RedCell(balance, "FEF9C3") : TWDCell(0, "FEF9C3")), TextCell("","FEF9C3")
         ]);
-        // 跨欄合併「結算總計」的標題
         ws3_merges.push({ s: { r: subtotalRowIdx, c: 0 }, e: { r: subtotalRowIdx, c: 1 } });
     });
     
@@ -2018,34 +2027,22 @@ window.exportSettlementCSV = function() {
             let splitCount = ex.splitMembers.length;
             let splitAmt = ex.twd / splitCount;
             let formulaStr = `${Math.round(ex.twd)}/${splitCount}=${Math.round(splitAmt)}/人`;
-            
             if (ex.payer === m) {
                 let validSplits = ex.splitMembers.filter(sm => sm !== m);
-                validSplits.forEach(sm => {
-                    mExpenses.push({
-                        time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title,
-                        rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: m, 
-                        desc: `幫${sm}付`, amt: splitAmt, form: formulaStr
-                    });
-                });
-            } 
-            else if (ex.splitMembers.includes(m) && ex.payer) {
-                mExpenses.push({
-                    time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title,
-                    rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: ex.payer,
-                    desc: `由${ex.payer}代墊`, amt: -splitAmt, form: formulaStr
-                });
+                validSplits.forEach(sm => { mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: m, desc: `幫${sm}付`, amt: splitAmt, form: formulaStr }); });
+            } else if (ex.splitMembers.includes(m) && ex.payer) {
+                mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: ex.payer, desc: `由${ex.payer}代墊`, amt: -splitAmt, form: formulaStr });
             }
         });
 
         if (mExpenses.length === 0) return;
-
         if (ws4_data.length > 0) ws4_data.push([]);
 
         let titleRowIdx = ws4_data.length;
+        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws4_data.push([
-            { v: `👤 ${m} 的一對一帳目核對`, t: 's', s: { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, fill: { fgColor: { rgb: "374151" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
-            TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151"), TextCell("","374151")
+            { v: `👤 ${m} 的一對一帳目核對`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
+            TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
         ]);
         ws4_merges.push({ s: { r: titleRowIdx, c: 0 }, e: { r: titleRowIdx, c: 9 } });
 
@@ -2054,21 +2051,14 @@ window.exportSettlementCSV = function() {
         let mTotal = 0;
         mExpenses.forEach(item => {
             mTotal += item.amt;
-            ws4_data.push([
-                TextCell(item.time), CatCell(item.cat), TextCell(item.title),
-                NumCell(item.rate || 41), KRWCell(item.krw), TWDCell(item.twd),
-                TextCell(item.payer), TextCell(item.desc),
-                item.amt > 0 ? GreenCell(item.amt) : RedCell(item.amt),
-                TextCell(item.form)
-            ]);
+            ws4_data.push([ TextCell(item.time), CatCell(item.cat), TextCell(item.title), NumCell(item.rate || 41), KRWCell(item.krw), TWDCell(item.twd), TextCell(item.payer), TextCell(item.desc), item.amt > 0 ? GreenCell(item.amt) : RedCell(item.amt), TextCell(item.form) ]);
         });
 
         let subtotalRowIdx = ws4_data.length;
         ws4_data.push([
             { v: `💰 ${m} 結算總計`, t: 's', s: { font: { bold: true, color: { rgb: "374151" } }, fill: { fgColor: { rgb: "FEF9C3" } }, alignment: { vertical: "center", horizontal: "right" }, border: bStyle } },
             TextCell("","FEF9C3"), TextCell("","FEF9C3"), TextCell("","FEF9C3"), TextCell("","FEF9C3"), TextCell("","FEF9C3"), TextCell("","FEF9C3"), TextCell("","FEF9C3"),
-            mTotal > 0 ? GreenCell(mTotal, "FEF9C3") : (mTotal < 0 ? RedCell(mTotal, "FEF9C3") : TWDCell(0, "FEF9C3")),
-            TextCell("","FEF9C3")
+            mTotal > 0 ? GreenCell(mTotal, "FEF9C3") : (mTotal < 0 ? RedCell(mTotal, "FEF9C3") : TWDCell(0, "FEF9C3")), TextCell("","FEF9C3")
         ]);
         ws4_merges.push({ s: { r: subtotalRowIdx, c: 0 }, e: { r: subtotalRowIdx, c: 7 } });
     });

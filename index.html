@@ -1371,7 +1371,15 @@
         window.delGridRow = function(idx, rIdx) { editState.blocks[idx].rows.splice(rIdx, 1); renderBlocksEditor(); }
         window.ugData = function(bIdx, rIdx, cIdx, val) { editState.blocks[bIdx].rows[rIdx][cIdx] = val; }
         window.addBadgeItem = function(idx) { editState.blocks[idx].items.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '', details: [{text: '', isLink: false, linkName: ''}] }); renderBlocksEditor(); }
-        window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
+		window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
+        window.splitBadgeBlock = function(bIdx, iIdx) {
+            const b = editState.blocks[bIdx];
+            if (iIdx >= b.items.length - 1) return;
+            const newItems = b.items.splice(iIdx + 1);
+            const newBlock = { type: 'badge', items: newItems };
+            editState.blocks.splice(bIdx + 1, 0, newBlock);
+            renderBlocksEditor();
+        }
 		window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
 
         window.addSplitRoute = function(bIdx) { editState.blocks[bIdx].routes.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '新路線', text: '', details: [] }); renderBlocksEditor(); }
@@ -1401,12 +1409,15 @@
                     <div class="p-3 space-y-2">
                         ${b.type === 'badge' ? `
                             <div class="space-y-3">
-                                ${b.items.map((it, i) => `
-                                    <div class="p-2 border border-gray-200 rounded bg-gray-50 relative pb-3">
-                                        ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, i)" class="absolute top-1 right-1 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times text-[10px]"></i></button>` : ''}
+								${b.items.map((it, i) => `
+                                    <div class="p-2 border border-gray-200 rounded bg-gray-50 relative pb-3 mt-4">
+                                        <div class="absolute -top-3 right-2 flex space-x-1 z-10">
+                                            ${i < b.items.length - 1 ? `<button onclick="splitBadgeBlock(${idx}, ${i})" class="text-white bg-[#0369a1] hover:bg-[#0284c7] px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="從這裡切斷，讓下方行程獨立成新群組"><i class="fas fa-cut mr-1"></i>從此切斷</button>` : ''}
+                                            ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, ${i})" class="text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="刪除此行程"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                        </div>
                                         
                                         <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm">
-                                            <span class="text-[10px] font-bold text-gray-400 block mb-1 uppercase">樣式預覽 Preview</span>
+										<span class="text-[10px] font-bold text-gray-400 block mb-1 uppercase">樣式預覽 Preview</span>
                                             <div class="flex items-start">
                                                 <div id="preview-badge-${idx}-${i}" class="text-[10px] px-2 py-0.5 rounded mr-2 border border-black/5 shrink-0 mt-0.5" style="background-color: ${toHex(it.style)}; color: ${toHex(it.textColor)};">${it.badge || '標籤'}</div>
                                                 <div id="preview-title-${idx}-${i}" class="text-sm font-bold flex-1" style="color: ${toHex(it.titleColor)};">${it.title || '標題文字'}</div>

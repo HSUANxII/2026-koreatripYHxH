@@ -2642,22 +2642,7 @@ window.exportSettlementCSV = function() {
         window.editMembers = window.openSettings;
 		
 		document.addEventListener('DOMContentLoaded', () => {
-
-		// ★ 延遲 3 秒執行自動注入 (等雲端資料先載入完畢，強制寫入雲端避免被覆蓋) ★
-            setTimeout(() => {
-                let isInfoChanged = false;
-                let isFlightChanged = false;
-                let isListsChanged = false;
-                let isPlanChanged = false;
-
-                // ★ 強制更新行程魔法 (移到這裡，確保雲端連線已就緒) ★
-                if (!localStorage.getItem('force_update_plan_0320_v2')) {
-                    planCardsData = JSON.parse(JSON.stringify(defaultPlanCards));
-                    isPlanChanged = true;
-                    localStorage.setItem('force_update_plan_0320_v2', 'true');
-                }
-				
-            // 瞬間載入離線資料與介面
+            // 瞬間載入離線資料與介面 (必須立刻執行，否則畫面會空白)
             initTitlesUI();
             showTab('plan'); 
             renderCards('plan'); 
@@ -2673,11 +2658,19 @@ window.exportSettlementCSV = function() {
             fetchExchangeRate(false); 
             if(window.setCurrentTimeToInput) window.setCurrentTimeToInput();
 
-		// ★ 延遲 3 秒執行自動注入 (等雲端資料先載入完畢，強制寫入雲端避免被覆蓋) ★
+            // ★ 延遲 3 秒執行自動注入 (等雲端資料先載入完畢，強制寫入雲端避免被覆蓋) ★
             setTimeout(() => {
                 let isInfoChanged = false;
                 let isFlightChanged = false;
                 let isListsChanged = false;
+                let isPlanChanged = false;
+
+                // ★ 強制更新行程魔法 (移到這裡，確保雲端連線已就緒) ★
+                if (!localStorage.getItem('force_update_plan_0320_v2')) {
+                    planCardsData = JSON.parse(JSON.stringify(defaultPlanCards));
+                    isPlanChanged = true;
+                    localStorage.setItem('force_update_plan_0320_v2', 'true');
+                }
 
                 // 1. 刪除獨立的房東路線卡片 (如果有)，準備將它整合到住宿卡片裡
                 const oldRouteIdx = infoCardsData.findIndex(c => c.id === 'c_route_seoul');
@@ -2768,7 +2761,7 @@ window.exportSettlementCSV = function() {
                     }
                 }
 
-                // 5. 自動新增「行李寄存與地圖查詢」卡片 (加入 Google 和 Naver 導航按鈕)
+                // 5. 自動新增「行李寄存與地圖查詢」卡片
                 const luggageCardIdx = infoCardsData.findIndex(c => c.id === 'c_luggage');
                 const luggageBlock = {
                     id: 'c_luggage', title: '首爾/釜山 行李寄存查詢', icon: 'fa-suitcase-rolling', color: '#b45309',
@@ -2803,14 +2796,14 @@ window.exportSettlementCSV = function() {
                     isListsChanged = true;
                 }
 
-			// ★ 關鍵：如果有變更，強制存回記憶體並推上雲端，然後重新渲染 ★
+                // ★ 關鍵：如果有變更，強制存回記憶體並推上雲端，然後重新渲染 ★
                 if (isInfoChanged) { saveCardsToStorage('info'); renderCards('info'); }
                 if (isFlightChanged) { saveCardsToStorage('flight'); renderCards('flight'); }
                 if (isListsChanged) { saveCardsToStorage('lists'); renderCards('lists'); }
                 if (isPlanChanged) { saveCardsToStorage('plan'); renderCards('plan'); }
 
             }, 3000);
-			});
+        });
 		
 // ==========================================
         // ★ 終極安全版：視覺化設定中心外掛 (修復新增與雲端同步) ★

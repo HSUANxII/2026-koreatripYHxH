@@ -1380,6 +1380,18 @@
             editState.blocks.splice(bIdx + 1, 0, newBlock);
             renderBlocksEditor();
         }
+		
+		window.moveBadgeItem = function(bIdx, iIdx, dir) {
+            const items = editState.blocks[bIdx].items;
+            if (dir === -1 && iIdx > 0) { [items[iIdx - 1], items[iIdx]] = [items[iIdx], items[iIdx - 1]]; renderBlocksEditor(); }
+            if (dir === 1 && iIdx < items.length - 1) { [items[iIdx], items[iIdx + 1]] = [items[iIdx + 1], items[iIdx]]; renderBlocksEditor(); }
+        }
+        window.moveSplitRoute = function(bIdx, rIdx, dir) {
+            const routes = editState.blocks[bIdx].routes;
+            if (dir === -1 && rIdx > 0) { [routes[rIdx - 1], routes[rIdx]] = [routes[rIdx], routes[rIdx - 1]]; renderBlocksEditor(); }
+            if (dir === 1 && rIdx < routes.length - 1) { [routes[rIdx], routes[rIdx + 1]] = [routes[rIdx + 1], routes[rIdx]]; renderBlocksEditor(); }
+        }
+		
 		window.setIconAndRender = function(idx, val) { ub(idx, 'icon', val); renderBlocksEditor(); }
 
         window.addSplitRoute = function(bIdx) { editState.blocks[bIdx].routes.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '新路線', text: '', details: [] }); renderBlocksEditor(); }
@@ -1411,7 +1423,9 @@
                             <div class="space-y-3">
 								${b.items.map((it, i) => `
                                     <div class="p-2 border border-gray-200 rounded bg-gray-50 relative pb-3 mt-4">
-                                        <div class="absolute -top-3 right-2 flex space-x-1 z-10">
+										<div class="absolute -top-3 right-2 flex space-x-1 z-10">
+                                            <button onclick="moveBadgeItem(${idx}, ${i}, -1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="上移此行程"><i class="fas fa-arrow-up"></i></button>
+                                            <button onclick="moveBadgeItem(${idx}, ${i}, 1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="下移此行程"><i class="fas fa-arrow-down"></i></button>
                                             ${i < b.items.length - 1 ? `<button onclick="splitBadgeBlock(${idx}, ${i})" class="text-white bg-[#0369a1] hover:bg-[#0284c7] px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="從這裡切斷，讓下方行程獨立成新群組"><i class="fas fa-cut mr-1"></i>從此切斷</button>` : ''}
                                             ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, ${i})" class="text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="刪除此行程"><i class="fas fa-trash-alt"></i></button>` : ''}
                                         </div>
@@ -1523,9 +1537,13 @@
 
                                 <div class="grid grid-cols-2 gap-2">
                                     ${b.routes.map((r, rIdx) => `
-                                        <div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5 relative pb-6">
-                                            ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="absolute top-1 right-1 text-red-500 hover:text-red-700 bg-red-50 w-5 h-5 flex items-center justify-center rounded"><i class="fas fa-times text-[10px]"></i></button>` : ''}
-                                            <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">滑動卡片 ${rIdx + 1}</div>
+											<div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5 relative pb-6 mt-4">
+                                            <div class="absolute -top-3 right-2 flex space-x-1 z-10">
+                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, -1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="往前排"><i class="fas fa-arrow-up"></i></button>
+                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, 1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="往後排"><i class="fas fa-arrow-down"></i></button>
+                                                ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="刪除此卡片"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                            </div>
+                                            <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-2">滑動卡片 ${rIdx + 1}</div>
                                             <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
                                             <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
                                             <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>

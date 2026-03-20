@@ -1451,9 +1451,13 @@
                                     </div>
                                 </div>
 
-                                <div class="space-y-1.5 mt-1 bg-white border border-gray-200 p-2 rounded shadow-sm">
+								<div class="space-y-1.5 mt-1 bg-white border border-gray-200 p-2 rounded shadow-sm">
                                     <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">背景色</span>${colorPaletteHTML(b.style, `ub(${idx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                     <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">文字顏色</span>${colorPaletteHTML(b.textColor||'#333333', `ub(${idx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                    <div class="flex items-center pt-1.5 border-t border-gray-100">
+                                        <span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">提示圖示</span>
+                                        <input type="text" value="${b.icon||''}" oninput="ub(${idx}, 'icon', this.value); renderBlocksEditor()" placeholder="貼上 Emoji" class="w-20 border border-gray-300 rounded p-1 text-xs text-center outline-none bg-gray-50">
+                                    </div>
                                 </div>
                                 
                                 <textarea oninput="ub(${idx}, 'text', this.value)" rows="5" placeholder="提醒內容" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>

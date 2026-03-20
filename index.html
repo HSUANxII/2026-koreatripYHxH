@@ -1353,8 +1353,18 @@
             if(field === 'title' && titleEl) titleEl.innerText = val || '標題文字';
         }
         
-        window.addBadgeDetail = function(bIdx, iIdx) { editState.blocks[bIdx].items[iIdx].details.push({text: '', isLink: false, linkName: ''}); renderBlocksEditor(); }
+		window.addBadgeDetail = function(bIdx, iIdx) { editState.blocks[bIdx].items[iIdx].details.push({text: '', isLink: false, linkName: ''}); renderBlocksEditor(); }
         window.delBadgeDetail = function(bIdx, iIdx, dIdx) { editState.blocks[bIdx].items[iIdx].details.splice(dIdx, 1); renderBlocksEditor(); }
+        window.moveBadgeDetail = function(bIdx, iIdx, dIdx, dir) {
+            const details = editState.blocks[bIdx].items[iIdx].details;
+            if (dir === -1 && dIdx > 0) { [details[dIdx - 1], details[dIdx]] = [details[dIdx], details[dIdx - 1]]; renderBlocksEditor(); }
+            if (dir === 1 && dIdx < details.length - 1) { [details[dIdx], details[dIdx + 1]] = [details[dIdx + 1], details[dIdx]]; renderBlocksEditor(); }
+        }
+        window.moveSplitDetail = function(bIdx, rIdx, dIdx, dir) {
+            const details = editState.blocks[bIdx].routes[rIdx].details;
+            if (dir === -1 && dIdx > 0) { [details[dIdx - 1], details[dIdx]] = [details[dIdx], details[dIdx - 1]]; renderBlocksEditor(); }
+            if (dir === 1 && dIdx < details.length - 1) { [details[dIdx], details[dIdx + 1]] = [details[dIdx + 1], details[dIdx]]; renderBlocksEditor(); }
+        }
         window.udg = function(bIdx, iIdx, dIdx, field, val) { const detail = editState.blocks[bIdx].items[iIdx].details[dIdx]; if (field === 'isLink') detail.isLink = (val === 'true'); else detail[field] = val; }
         window.updateGridCols = function(idx, delta) { const b = editState.blocks[idx]; const newCols = b.cols + delta; if (newCols > 0 && newCols <= 5) { b.cols = newCols; b.rows.forEach(r => { if (delta > 0) r.push(''); else r.pop(); }); renderBlocksEditor(); } }
         window.addGridRow = function(idx) { const b = editState.blocks[idx]; b.rows.push(new Array(b.cols).fill('')); renderBlocksEditor(); }
@@ -1417,10 +1427,14 @@
                                                 <div class="flex space-x-1 mt-1.5">
                                                     <select onchange="udg(${idx}, ${i}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded p-1 text-[10px] font-bold bg-gray-100 shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
                                                     ${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'linkName', this.value)" placeholder="按鈕名" class="w-16 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white text-gray-700 shrink-0">` : ''}
-                                                    <input type="text" value="${d.text||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" placeholder="${d.isLink?'https://...':'附加說明內容'}" class="flex-1 min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white">
-                                                    <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="text-red-400 px-1 shrink-0"><i class="fas fa-minus-circle text-[10px]"></i></button>
-                                                </div>
-                                            `).join('')}
+													<input type="text" value="${d.text||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" placeholder="${d.isLink?'https://...':'附加說明內容'}" class="flex-1 min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white">
+                                                    <div class="flex items-center space-x-1 shrink-0 bg-gray-100 border border-gray-200 rounded px-1">
+                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-gray-800 transition" title="上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-gray-800 transition" title="下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                        <div class="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
+                                                        <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="text-red-400 p-1 hover:text-red-600 transition" title="刪除"><i class="fas fa-times text-[10px]"></i></button>
+                                                    </div>
+                                                </div>                                            `).join('')}
                                             <button onclick="addBadgeDetail(${idx}, ${i})" class="w-full mt-1.5 py-1 text-[10px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100">+ 新增明細列</button>
                                         </div>
                                     </div>
@@ -1501,10 +1515,16 @@
                                                 <div class="text-[10px] font-bold text-gray-500 mb-1">📋 明細列 (自動偵測網址)</div>
                                                 ${(r.details||[]).map((d, dIdx) => `
                                                     <div class="flex items-start space-x-1 mb-1.5 bg-white p-1 rounded border border-gray-200">
-                                                        <textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="內容或貼上網址..." class="flex-1 min-w-0 border-transparent rounded p-1 text-xs font-bold outline-none bg-white leading-relaxed">${d.text||''}</textarea>
-                                                        <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="text-red-400 p-1 shrink-0 hover:bg-red-50 rounded mt-0.5"><i class="fas fa-times-circle text-sm"></i></button>
-                                                    </div>
-                                                `).join('')}
+														<textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="內容或貼上網址..." class="flex-1 min-w-0 border-transparent rounded p-1 text-xs font-bold outline-none bg-white leading-relaxed">${d.text||''}</textarea>
+                                                        <div class="flex flex-col items-center space-y-1 shrink-0 bg-gray-50 border border-gray-200 rounded py-1 px-0.5 mt-0.5">
+                                                            <div class="flex space-x-1">
+                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-gray-800 transition"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-gray-800 transition"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                            </div>
+                                                            <div class="w-4 h-[1px] bg-gray-300"></div>
+                                                            <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="text-red-400 p-1 hover:text-red-600 transition"><i class="fas fa-times text-[10px]"></i></button>
+                                                        </div>
+                                                    </div>                                                `).join('')}
                                                 <button onclick="addSplitDetail(${idx}, ${rIdx})" class="w-full mt-1 py-1.5 text-[10px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition">+ 新增明細列</button>
                                             </div>
 

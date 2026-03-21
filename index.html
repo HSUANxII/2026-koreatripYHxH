@@ -1827,7 +1827,10 @@
             }
         }
 
-		window.changeCurrency = function(val) {
+		// ★ 新增：各國貨幣的中文對照表
+        const currencyNames = { KRW: '韓元', JPY: '日圓', THB: '泰銖', VND: '越盾', USD: '美金', EUR: '歐元', HKD: '港幣' };
+
+        window.changeCurrency = function(val) {
             currentTargetCurrency = val;
             localStorage.setItem('korea_target_currency', val);
             updateCurrencyUI();
@@ -1836,12 +1839,20 @@
 
         window.updateCurrencyUI = function() {
             const sym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
+            const name = currencyNames[currentTargetCurrency] || '外幣';
+            
+            // 換符號
             const expSymbolEl = document.getElementById('exp-foreign-symbol');
             if(expSymbolEl) expSymbolEl.innerText = sym;
+            
+            // ★ 新增：換輸入框的浮水印文字 (placeholder)
+            const expInputEl = document.getElementById('exp-krw');
+            if(expInputEl) expInputEl.placeholder = name;
+            
             updateCalcDisplay();
             if(typeof renderExpenses === 'function') renderExpenses();
         };
-
+		
         window.fetchExchangeRate = async function(isManual = false) {
             try {
                 if (isManual) document.getElementById('exchange-update-time').innerText = "更新中...";

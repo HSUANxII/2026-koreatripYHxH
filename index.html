@@ -1143,7 +1143,7 @@
                 const hBg = toHex(b.style || '#f3f4f6');
                 const hText = toHex(b.textColor || '#374151');
                 const hBodyBg = toHex(b.bodyStyle || '#f9fafb');
-                const hBodyText = toHex(b.bodyTextColor || '#374151'); // ★ 新增讀取表格文字顏色
+                const hBodyText = toHex(b.bodyTextColor || '#374151'); // ★ 讀取表格文字顏色
                 return `<div class="grid gap-1 text-[11px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">${
                     b.rows.map((r, rIdx) => 
                         r.map(cell => 
@@ -1590,7 +1590,7 @@
 						` : b.type === 'grid' ? `
                             <div class="flex items-center space-x-2 mb-3 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm"><span class="text-[11px] font-bold text-gray-700">欄位數:</span><button onclick="updateGridCols(${idx}, -1)" class="w-6 h-6 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold shadow-sm hover:bg-gray-100 transition">-</button><span class="text-xs font-bold text-gray-900 w-4 text-center">${b.cols}</span><button onclick="updateGridCols(${idx}, 1)" class="w-6 h-6 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold shadow-sm hover:bg-gray-100 transition">+</button></div>
                             
-							<div class="mb-3 p-2.5 rounded-lg bg-gray-100 border border-dashed border-gray-300 shadow-inner opacity-80 pointer-events-none">
+                            <div class="mb-3 p-2.5 rounded-lg bg-gray-100 border border-dashed border-gray-300 shadow-inner opacity-80 pointer-events-none">
                                 <span class="text-[9px] font-bold text-gray-400 block mb-2 uppercase tracking-wider text-center">-- 樣式預覽 Preview --</span>
                                 <div class="grid gap-0.5 text-[9px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">
                                     ${b.rows.map((row, rIdx) => 
@@ -2195,10 +2195,11 @@
             
             const days = ['日', '一', '二', '三', '四', '五', '六'];
             const timeStr = `${d.getMonth()+1}/${d.getDate()}(${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            const rawDate = d.getTime();
+			const rawDate = d.getTime();
 
-            const expData = { title, category, krw, twd, rate, payer, splitMembers: [...selectedSplitMembers], image: currentExpBase64, time: timeStr, rawDate: rawDate };
-
+            // ★ 新增：將當下選擇的幣別 (currency) 一起存入資料庫
+            const expData = { title, category, krw, twd, rate, currency: currentTargetCurrency, payer, splitMembers: [...selectedSplitMembers], image: currentExpBase64, time: timeStr, rawDate: rawDate };
+			
             let finalId = editingExpId || ('exp' + Date.now());
             const idx = expenses.findIndex(x => x.id === finalId);
             if (idx >= 0) expenses[idx] = { id: finalId, ...expData }; else expenses.push({ id: finalId, ...expData });
@@ -2294,9 +2295,13 @@
             };
             
             list.innerHTML = expenses.map(ex => {
-				const curSym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
+                // ★ 修正：從每筆紀錄讀取專屬的幣別，若無(舊紀錄)則預設為韓元
+                const exCur = ex.currency || 'KRW';
+                const curSym = currencySymbols[exCur] || exCur;
+                const curName = currencyNames[exCur] || '外幣';
                 const cat = catMap[ex.category] || catMap.other;
                 let splitText = '';
+                
                 if (ex.splitMembers && ex.splitMembers.length > 0) {
                     let pKrw = Math.round(ex.krw / ex.splitMembers.length); let pTwd = Math.round(ex.twd / ex.splitMembers.length);
                     splitText = `<span class="bg-[#f0f9ff] px-1.5 py-0.5 rounded border border-[#bae6fd] whitespace-normal break-words leading-relaxed w-fit"><i class="fas fa-users text-[#0284c7] mr-1"></i>分攤: ${ex.splitMembers.join(', ')} (每人${curSym}${pKrw.toLocaleString()} / NT$${pTwd.toLocaleString()})</span>`;
@@ -2308,7 +2313,7 @@
                             ${ex.image ? `<img src="${ex.image}" onclick="openPhotoModal('${ex.image}')" class="w-12 h-12 object-cover rounded border border-gray-200 cursor-pointer shrink-0 shadow-sm">` : `<div class="w-12 h-12 ${cat.bg} rounded border flex items-center justify-center shrink-0 ${cat.c} shadow-sm"><i class="fas ${cat.icon} text-xl"></i></div>`}
                             <div class="truncate pr-2 w-full">
                                 <p class="text-sm font-bold text-gray-900 truncate">${ex.title}</p>
-                                <p class="text-[10px] font-bold text-gray-500">${ex.time} ${ex.rate ? `(匯率 ${ex.rate})` : ''}</p>
+                                <p class="text-[10px] font-bold text-gray-500">${ex.time} ${ex.rate ? `(${curName} 匯率: ${ex.rate})` : ''}</p>
                                 ${ex.payer || splitText ? `<div class="mt-1.5 flex flex-col gap-1 text-[10px] text-muji-dark font-bold">${ex.payer ? `<span class="bg-[#fef9c3] px-1.5 py-0.5 rounded border border-[#fde047] w-fit"><i class="fas fa-user-check text-[#a16207] mr-1"></i>墊: ${ex.payer}</span>` : ''}${splitText}</div>` : ''}
                             </div>
                         </div>
@@ -2408,113 +2413,111 @@
         }
         window.closeMsg = function() { document.getElementById('msg-modal').classList.add('hidden'); document.getElementById('msg-modal').classList.remove('flex'); }
 
-// --- 分帳結算邏輯功能 ---
-window.currentSettlementData = {};
-window.currentTransfers = { global: [], p2p: [] }; 
+	// --- 分帳結算邏輯功能 ---
+		window.currentSettlementData = {};
+		window.currentTransfers = { global: [], p2p: [] }; 
 
-window.openSettlementModal = function() {
-    let balances = {};
-    travelMembers.forEach(m => balances[m] = { paid: 0, shouldPay: 0, paidList: [], shouldPayList: [] });
-    
-    expenses.forEach(ex => {
-        if (!ex.splitMembers || ex.splitMembers.length === 0) return;
-        let totalAmount = ex.twd || 0; 
-        let splitCount = ex.splitMembers.length;
-        let splitAmount = totalAmount / splitCount;
-
-        if (ex.payer && balances[ex.payer]) {
-            balances[ex.payer].paid += totalAmount;
-            // ★ 修復：補上 rawDate，讓報表能抓到正確時間與排序
-            balances[ex.payer].paidList.push({ title: ex.title, amount: totalAmount, splitMembers: ex.splitMembers, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate });
-        }
-
-        ex.splitMembers.forEach(m => {
-            if (balances[m]) {
-                balances[m].shouldPay += splitAmount;
-                // ★ 修復：補上 rawDate，讓報表能抓到正確時間與排序
-                balances[m].shouldPayList.push({ title: ex.title, amount: splitAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate });
-            }
-        });
-    });
-    
-    window.currentSettlementData = balances;
-
-    let creditors = []; let debtors = [];
-    travelMembers.forEach(m => {
-        let b = balances[m].paid - balances[m].shouldPay;
-        if (b > 1) creditors.push({ name: m, amount: b }); else if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-    });
-    creditors.sort((a, b) => b.amount - a.amount); debtors.sort((a, b) => b.amount - a.amount);
-    
-    let globalTransfers = [];
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-        let debt = debtors[i];
-        let cred = creditors[j]; let amount = Math.min(debt.amount, cred.amount);
-        if(amount > 0) globalTransfers.push({ from: debt.name, to: cred.name, amount: amount });
-        debt.amount -= amount; cred.amount -= amount;
-        if (debt.amount < 1) i++; if (cred.amount < 1) j++;
-    }
-
-    let owes = {};
-    travelMembers.forEach(m => { owes[m] = {}; travelMembers.forEach(c => owes[m][c] = 0); });
-    expenses.forEach(ex => {
-        if (!ex.splitMembers || ex.splitMembers.length === 0 || !ex.payer) return;
-        let splitAmount = (ex.twd || 0) / ex.splitMembers.length;
-        ex.splitMembers.forEach(m => {
-            if (m !== ex.payer && owes[m] && owes[m][ex.payer] !== undefined) { owes[m][ex.payer] += splitAmount; }
-        });
-    });
-    
-    let p2pTransfers = [];
-    for (let x = 0; x < travelMembers.length; x++) {
-        for (let y = x + 1; y < travelMembers.length; y++) {
-            let m1 = travelMembers[x];
-            let m2 = travelMembers[y];
-            let m1OwesM2 = owes[m1][m2] || 0; let m2OwesM1 = owes[m2][m1] || 0;
-            if (m1OwesM2 > m2OwesM1) {
-                let net = m1OwesM2 - m2OwesM1;
-                if (net > 0.5) p2pTransfers.push({ from: m1, to: m2, amount: net });
-            } else if (m2OwesM1 > m1OwesM2) {
-                let net = m2OwesM1 - m1OwesM2;
-                if (net > 0.5) p2pTransfers.push({ from: m2, to: m1, amount: net });
-            }
-        }
-    }
-
-    window.currentTransfers = { global: globalTransfers, p2p: p2pTransfers };
-    let html = '';
-    travelMembers.forEach(m => {
-        let data = balances[m];
-        let finalBalance = data.paid - data.shouldPay; 
-        let balanceColor = finalBalance >= 0 ? 'text-[#15803d]' : 'text-[#e11d48]';
-        let balanceText = finalBalance >= 0 ? '應收回' : '需支付'; 
-        if(data.paid === 0 && data.shouldPay === 0) return;
+		window.openSettlementModal = function() {
+            let balances = {};
+            travelMembers.forEach(m => balances[m] = { paid: 0, shouldPay: 0, paidList: [], shouldPayList: [] });
         
-        html += `
-            <div onclick="showSettlementDetail('${m}')" class="p-3 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition mb-3">
-                <div class="font-bold text-gray-800 border-b border-gray-100 pb-1 mb-2 text-base flex justify-between">
-                    <span><i class="fas fa-user-circle text-gray-400 mr-1"></i> ${m}</span>
-                    <span class="text-[10px] text-gray-400 font-normal mt-1"><i class="fas fa-search mr-1"></i>看明細 / 轉帳</span>
-                </div>
-                <div class="flex justify-between text-xs text-gray-500 mb-1 font-bold">
-                    <span>總代墊: NT$ ${Math.round(data.paid).toLocaleString()}</span>
-                    <span>應分攤: NT$ ${Math.round(data.shouldPay).toLocaleString()}</span>
-                </div>
-                <div class="flex justify-between text-sm font-bold ${balanceColor} pt-1.5 border-t border-gray-100 mt-1">
-                    <span>${balanceText}</span>
-                    <span>NT$ ${Math.round(Math.abs(finalBalance)).toLocaleString()}</span>
-                </div>
-            </div>
-        `;
-    });
+            expenses.forEach(ex => {
+                if (!ex.splitMembers || ex.splitMembers.length === 0) return;
+                let totalAmount = ex.twd || 0; 
+                let splitCount = ex.splitMembers.length;
+                let splitAmount = totalAmount / splitCount;
 
-    if(html === '') html = '<div class="text-center text-gray-500 text-sm font-bold py-4">目前還沒有任何分帳紀錄喔！</div>';
-    document.getElementById('settlement-content').innerHTML = html;
-    document.getElementById('settlement-modal').classList.remove('hidden'); 
-    document.getElementById('settlement-modal').classList.add('flex');
-}
+                if (ex.payer && balances[ex.payer]) {
+                    balances[ex.payer].paid += totalAmount;
+                    balances[ex.payer].paidList.push({ title: ex.title, amount: totalAmount, splitMembers: ex.splitMembers, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW' });
+                }
 
+                ex.splitMembers.forEach(m => {
+                    if (balances[m]) {
+                        balances[m].shouldPay += splitAmount;
+                        balances[m].shouldPayList.push({ title: ex.title, amount: splitAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW' });
+                    }
+                });
+            }); // ★ 就是這個括號！上次不小心被刪掉了 ★
+            
+            window.currentSettlementData = balances;
+
+            let creditors = []; let debtors = [];
+            travelMembers.forEach(m => {
+                let b = balances[m].paid - balances[m].shouldPay;
+                if (b > 1) creditors.push({ name: m, amount: b }); else if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+            });
+            creditors.sort((a, b) => b.amount - a.amount); debtors.sort((a, b) => b.amount - a.amount);
+            
+            let globalTransfers = [];
+            let i = 0, j = 0;
+            while (i < debtors.length && j < creditors.length) {
+                let debt = debtors[i];
+                let cred = creditors[j]; let amount = Math.min(debt.amount, cred.amount);
+                if(amount > 0) globalTransfers.push({ from: debt.name, to: cred.name, amount: amount });
+                debt.amount -= amount; cred.amount -= amount;
+                if (debt.amount < 1) i++; if (cred.amount < 1) j++;
+            }
+
+            let owes = {};
+            travelMembers.forEach(m => { owes[m] = {}; travelMembers.forEach(c => owes[m][c] = 0); });
+            expenses.forEach(ex => {
+                if (!ex.splitMembers || ex.splitMembers.length === 0 || !ex.payer) return;
+                let splitAmount = (ex.twd || 0) / ex.splitMembers.length;
+                ex.splitMembers.forEach(m => {
+                    if (m !== ex.payer && owes[m] && owes[m][ex.payer] !== undefined) { owes[m][ex.payer] += splitAmount; }
+                });
+            });
+            
+            let p2pTransfers = [];
+            for (let x = 0; x < travelMembers.length; x++) {
+                for (let y = x + 1; y < travelMembers.length; y++) {
+                    let m1 = travelMembers[x];
+                    let m2 = travelMembers[y];
+                    let m1OwesM2 = owes[m1][m2] || 0; let m2OwesM1 = owes[m2][m1] || 0;
+                    if (m1OwesM2 > m2OwesM1) {
+                        let net = m1OwesM2 - m2OwesM1;
+                        if (net > 0.5) p2pTransfers.push({ from: m1, to: m2, amount: net });
+                    } else if (m2OwesM1 > m1OwesM2) {
+                        let net = m2OwesM1 - m1OwesM2;
+                        if (net > 0.5) p2pTransfers.push({ from: m2, to: m1, amount: net });
+                    }
+                }
+            }
+
+            window.currentTransfers = { global: globalTransfers, p2p: p2pTransfers };
+            let html = '';
+            travelMembers.forEach(m => {
+                let data = balances[m];
+                let finalBalance = data.paid - data.shouldPay; 
+                let balanceColor = finalBalance >= 0 ? 'text-[#15803d]' : 'text-[#e11d48]';
+                let balanceText = finalBalance >= 0 ? '應收回' : '需支付'; 
+                if(data.paid === 0 && data.shouldPay === 0) return;
+                
+                html += `
+                    <div onclick="showSettlementDetail('${m}')" class="p-3 bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition mb-3">
+                        <div class="font-bold text-gray-800 border-b border-gray-100 pb-1 mb-2 text-base flex justify-between">
+                            <span><i class="fas fa-user-circle text-gray-400 mr-1"></i> ${m}</span>
+                            <span class="text-[10px] text-gray-400 font-normal mt-1"><i class="fas fa-search mr-1"></i>看明細 / 轉帳</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-1 font-bold">
+                            <span>總代墊: NT$ ${Math.round(data.paid).toLocaleString()}</span>
+                            <span>應分攤: NT$ ${Math.round(data.shouldPay).toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold ${balanceColor} pt-1.5 border-t border-gray-100 mt-1">
+                            <span>${balanceText}</span>
+                            <span>NT$ ${Math.round(Math.abs(finalBalance)).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if(html === '') html = '<div class="text-center text-gray-500 text-sm font-bold py-4">目前還沒有任何分帳紀錄喔！</div>';
+            document.getElementById('settlement-content').innerHTML = html;
+            document.getElementById('settlement-modal').classList.remove('hidden'); 
+            document.getElementById('settlement-modal').classList.add('flex');
+        }
+		
 window.getPaidForText = function(splitArr, payerName) {
     if (!splitArr || splitArr.length === 0) return '所有人';
     if (splitArr.length === travelMembers.length) return '所有人';
@@ -2581,7 +2584,7 @@ window.closeSettlementModal = function() {
 }
 
 // ★ 終極版：支援彩色、寬度自適應、漏斗篩選與一對一詳細明細的 Excel
-window.exportSettlementCSV = function() {
+	window.exportSettlementCSV = function() {
     if (typeof XLSX === 'undefined') { showMsg('載入 Excel 模組中，請確認網路連線。'); return; }
     let wb = XLSX.utils.book_new();
 
@@ -2599,11 +2602,21 @@ window.exportSettlementCSV = function() {
     const HeadCell = (v) => ({ v, t: 's', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "4B5563" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
     const TextCell = (v, bg="FFFFFF", wrap=false) => ({ v: v || '', t: 's', s: { fill: { fgColor: { rgb: bg } }, alignment: { vertical: "center", horizontal: "center", wrapText: wrap }, border: bStyle } });
     const NumCell = (v, bg="FFFFFF") => ({ v: v || 0, t: 'n', s: { fill: { fgColor: { rgb: bg } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
-    const KRWCell = (v, bg="FFFFFF") => ({ v: v || 0, t: 'n', z: '"₩"#,##0', s: { fill: { fgColor: { rgb: bg } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
+    
+    // ★ 智能外幣儲存格：依據國家自動套用專屬貨幣符號與小數位數
+    const ForeignCell = (v, cur, bg="FFFFFF") => {
+        const getFormat = (c) => {
+            const map = { KRW: '"₩"#,##0', JPY: '"¥"#,##0', THB: '"฿"#,##0.00', VND: '"₫"#,##0', USD: '"$"#,##0.00', EUR: '"€"#,##0.00', HKD: '"HK$"#,##0.00' };
+            return map[c] || '"$"#,##0.00';
+        };
+        return { v: v || 0, t: 'n', z: getFormat(cur), s: { fill: { fgColor: { rgb: bg } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } };
+    };
+
     const TWDCell = (v, bg="FFFFFF") => ({ v: v || 0, t: 'n', z: '"NT$"#,##0', s: { fill: { fgColor: { rgb: bg } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
     const GreenCell = (v, bg="FFFFFF") => ({ v: v || 0, t: 'n', z: '"NT$"#,##0', s: { fill: { fgColor: { rgb: bg } }, font: { color: { rgb: "15803D" }, bold: true }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
     const RedCell = (v, bg="FFFFFF") => ({ v: v || 0, t: 'n', z: '"NT$"#,##0', s: { fill: { fgColor: { rgb: bg } }, font: { color: { rgb: "B91C1C" }, bold: true }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } });
 	const CatCell = (v, bg="FFFFFF") => { let cMap={food:'🍽️ 餐飲',convenience:'🏪 便利商店',supermarket:'🛒 超市',cosmetics:'💄 藥妝',shop:'🛍️ 購物',traffic:'🚌 交通',ticket:'🎫 門票',stay:'🛏️ 住宿',other:'🧾 其他'}; return TextCell(cMap[v]||'🧾 其他', bg); };
+    
     const applySmartFormat = (ws, dataArr, specialRowHeight = {}, disableFilter = false) => {
         if (!ws['!ref']) return;
         let headerRow = dataArr.find(row => row && row.some(cell => cell && typeof cell.v === 'string' && (cell.v.includes("日期/時間") || cell.v.includes("匯率") || cell.v.includes("當日總代墊")))) || dataArr[0];
@@ -2617,14 +2630,14 @@ window.exportSettlementCSV = function() {
             if (name === "分攤成員") return { wch: 51.7 }; 
             if (name === "最簡轉帳動作") return { wch: 19 }; 
             if (["當日總代墊", "當日總應分攤", "當日結餘", "最終總結餘"].includes(name)) return { wch: 14 }; 
-            if (name.includes("韓幣金額") || name.includes("台幣金額") || name.includes("代墊金額")) return { wch: 12 };
+            if (name.includes("外幣金額") || name.includes("台幣金額") || name.includes("代墊金額")) return { wch: 12 };
             if (name.includes("匯率")) return { wch: 7 };
-            if (name.includes("消費類別")) return { wch: 9.5 };
+            if (name.includes("消費類別")) return { wch: 14 };
             if (name === "成員" || name === "代墊人") return { wch: 7.5 };
             if (name.includes("NT$結餘")) return { wch: 14 };
             if (name.includes("帳務明細")) return { wch: 12 };
-            if (name.includes("消費名稱")) return { wch: 18 };
-            if (name.includes("計算公式")) return { wch: 15 };
+            if (name.includes("消費名稱")) return { wch: 20 };
+            if (name.includes("計算公式")) return { wch: 30 };
             return { wch: 12 }; 
         });
         ws['!cols'] = colWidths;
@@ -2633,10 +2646,10 @@ window.exportSettlementCSV = function() {
     let sortedExpenses = [...expenses].sort((a, b) => (a.rawDate || 0) - (b.rawDate || 0));
 
     // --- 第一頁 [1.歷史消費總表] ---
-    let ws1_data = [[HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("韓幣金額"), HeadCell("台幣金額"), HeadCell("代墊人"), HeadCell("分攤成員")]];
+    let ws1_data = [[HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("外幣金額"), HeadCell("台幣金額"), HeadCell("代墊人"), HeadCell("分攤成員")]];
     sortedExpenses.forEach(ex => {
         let split = ex.splitMembers && ex.splitMembers.length > 0 ? ex.splitMembers.join('、') : '無';
-        ws1_data.push([TextCell(getFullTime(ex.rawDate)), CatCell(ex.category), TextCell(ex.title), NumCell(ex.rate || 41), KRWCell(ex.krw), TWDCell(ex.twd), TextCell(ex.payer || '各付各'), TextCell(split)]);
+        ws1_data.push([TextCell(getFullTime(ex.rawDate)), CatCell(ex.category), TextCell(ex.title), NumCell(ex.rate || 41), ForeignCell(ex.krw, ex.currency || 'KRW'), TWDCell(ex.twd), TextCell(ex.payer || '各付各'), TextCell(split)]);
     });
     let ws1 = XLSX.utils.aoa_to_sheet(ws1_data); applySmartFormat(ws1, ws1_data); XLSX.utils.book_append_sheet(wb, ws1, "1.歷史消費總表");
 
@@ -2652,14 +2665,13 @@ window.exportSettlementCSV = function() {
         if (ws2_data.length > 0) { ws2_data.push([]); }
 
         let titleRowIdx = ws2_data.length;
-        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws2_data.push([
             { v: `👤 ${m} 的專屬帳務明細`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
             TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
         ]);
         ws2_merges.push({ s: { r: titleRowIdx, c: 0 }, e: { r: titleRowIdx, c: 7 } }); 
 
-        ws2_data.push([HeadCell("成員"), HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("韓幣金額"), HeadCell("台幣金額"), HeadCell("NT$結餘")]);
+        ws2_data.push([HeadCell("成員"), HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("外幣金額"), HeadCell("台幣金額"), HeadCell("NT$結餘")]);
 
         let mPaid = 0; let mShouldPay = 0;
         let combinedList = [];
@@ -2670,10 +2682,10 @@ window.exportSettlementCSV = function() {
         combinedList.forEach(item => {
             if (item.type === 'paid') {
                 mPaid += item.amount;
-                ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[代墊] ${item.title}`, mBg), NumCell(item.rate, mBg), KRWCell(item.krw, mBg), TWDCell(item.amount, mBg), GreenCell(item.amount, mBg)]);
+                ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[代墊] ${item.title}`, mBg), NumCell(item.rate, mBg), ForeignCell(item.krw, item.currency || 'KRW', mBg), TWDCell(item.amount, mBg), GreenCell(item.amount, mBg)]);
             } else {
                 mShouldPay += item.amount;
-                ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[分攤] ${item.title}`, mBg), NumCell(item.rate, mBg), KRWCell(item.krw, mBg), TWDCell(item.amount, mBg), RedCell(-item.amount, mBg)]);
+                ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[分攤] ${item.title}`, mBg), NumCell(item.rate, mBg), ForeignCell(item.krw, item.currency || 'KRW', mBg), TWDCell(item.amount, mBg), RedCell(-item.amount, mBg)]);
             }
         });
 
@@ -2692,7 +2704,7 @@ window.exportSettlementCSV = function() {
     applySmartFormat(ws2, ws2_data, {}, true); 
     XLSX.utils.book_append_sheet(wb, ws2, "2.個人帳務明細");
 
-    // --- 第三頁 [3.最簡轉帳法] ---
+    // --- 第三頁 [3.最簡轉帳法] (不需顯示外幣，不更動) ---
     let ws3_data = [];
     let ws3_merges = [];
     let ws3_heights = {};
@@ -2705,7 +2717,6 @@ window.exportSettlementCSV = function() {
         if (ws3_data.length > 0) ws3_data.push([]);
 
         let titleRowIdx = ws3_data.length;
-        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws3_data.push([
             { v: `👤 ${m} 的最簡轉帳法 (每日結算明細)`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
             TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
@@ -2764,9 +2775,9 @@ window.exportSettlementCSV = function() {
             let formulaStr = `${Math.round(ex.twd)}/${splitCount}=${Math.round(splitAmt)}/人`;
             if (ex.payer === m) {
                 let validSplits = ex.splitMembers.filter(sm => sm !== m);
-                validSplits.forEach(sm => { mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: m, desc: `幫${sm}付`, amt: splitAmt, form: formulaStr }); });
+                validSplits.forEach(sm => { mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, currency: ex.currency || 'KRW', twd: ex.twd, payer: m, desc: `幫${sm}付`, amt: splitAmt, form: formulaStr }); });
             } else if (ex.splitMembers.includes(m) && ex.payer) {
-                mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, twd: ex.twd, payer: ex.payer, desc: `由${ex.payer}代墊`, amt: -splitAmt, form: formulaStr });
+                mExpenses.push({ time: getFullTime(ex.rawDate), cat: ex.category, title: ex.title, rate: ex.rate, krw: ex.krw, currency: ex.currency || 'KRW', twd: ex.twd, payer: ex.payer, desc: `由${ex.payer}代墊`, amt: -splitAmt, form: formulaStr });
             }
         });
 
@@ -2774,19 +2785,18 @@ window.exportSettlementCSV = function() {
         if (ws4_data.length > 0) ws4_data.push([]);
 
         let titleRowIdx = ws4_data.length;
-        // ★ 這裡底色改成 E0F2FE，字體改成 0369A1 ★
         ws4_data.push([
             { v: `👤 ${m} 的一對一帳目核對`, t: 's', s: { font: { bold: true, color: { rgb: "0369A1" }, sz: 12 }, fill: { fgColor: { rgb: "E0F2FE" } }, alignment: { vertical: "center", horizontal: "center" }, border: bStyle } },
             TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE"), TextCell("","E0F2FE")
         ]);
         ws4_merges.push({ s: { r: titleRowIdx, c: 0 }, e: { r: titleRowIdx, c: 9 } });
 
-        ws4_data.push([HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("韓幣金額"), HeadCell("台幣金額"), HeadCell("代墊人"), HeadCell("帳務明細"), HeadCell("代墊金額"), HeadCell("計算公式")]);
+        ws4_data.push([HeadCell("日期/時間"), HeadCell("消費類別"), HeadCell("消費名稱"), HeadCell("匯率"), HeadCell("外幣金額"), HeadCell("台幣金額"), HeadCell("代墊人"), HeadCell("帳務明細"), HeadCell("代墊金額"), HeadCell("計算公式")]);
 
         let mTotal = 0;
         mExpenses.forEach(item => {
             mTotal += item.amt;
-            ws4_data.push([ TextCell(item.time), CatCell(item.cat), TextCell(item.title), NumCell(item.rate || 41), KRWCell(item.krw), TWDCell(item.twd), TextCell(item.payer), TextCell(item.desc), item.amt > 0 ? GreenCell(item.amt) : RedCell(item.amt), TextCell(item.form) ]);
+            ws4_data.push([ TextCell(item.time), CatCell(item.cat), TextCell(item.title), NumCell(item.rate || 41), ForeignCell(item.krw, item.currency), TWDCell(item.twd), TextCell(item.payer), TextCell(item.desc), item.amt > 0 ? GreenCell(item.amt) : RedCell(item.amt), TextCell(item.form) ]);
         });
 
         let subtotalRowIdx = ws4_data.length;

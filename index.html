@@ -1842,7 +1842,7 @@
             if(typeof renderExpenses === 'function') renderExpenses();
         };
 
-		window.fetchExchangeRate = async function(isManual = false) {
+        window.fetchExchangeRate = async function(isManual = false) {
             try {
                 if (isManual) document.getElementById('exchange-update-time').innerText = "更新中...";
                 
@@ -1851,20 +1851,20 @@
                 const targetUpper = currentTargetCurrency.toUpperCase();
                 
                 try {
-                    // 🚀 引擎 A：全球最大 CDN 資源庫 (偽裝成靜態檔案，100% 避開擋廣告軟體)
+                    // 🚀 引擎 A
                     const res1 = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/twd.json');
                     const data1 = await res1.json();
                     if (data1 && data1.twd && data1.twd[targetLower]) rate = data1.twd[targetLower];
                     else throw new Error("A沒資料");
                 } catch(e1) {
                     try {
-                        // 🚀 引擎 B：標準備用 API
+                        // 🚀 引擎 B
                         const res2 = await fetch('https://open.er-api.com/v6/latest/TWD');
                         const data2 = await res2.json();
                         if (data2 && data2.rates && data2.rates[targetUpper]) rate = data2.rates[targetUpper];
                         else throw new Error("B沒資料");
                     } catch(e2) {
-                        // 🚀 引擎 C：終極備用 API
+                        // 🚀 引擎 C
                         const res3 = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
                         const data3 = await res3.json();
                         if (data3 && data3.rates && data3.rates[targetUpper]) rate = data3.rates[targetUpper];
@@ -1872,12 +1872,13 @@
                 }
 
                 if (rate !== null) {
-                    // 智慧精準度：小幣值顯示2位小數，大幣值(如美金)顯示4位小數
                     const rateStr = rate < 1 ? rate.toFixed(4) : rate.toFixed(2);
-                    
                     document.getElementById('base-rate').value = rateStr;
                     if(document.getElementById('exp-rate')) document.getElementById('exp-rate').value = rateStr;
-                    updateCalcDisplay(); calcExpTwd(); 
+                    
+                    // 呼叫計算機大腦更新畫面
+                    updateCalcDisplay(); 
+                    calcExpTwd(); 
                     
                     const n = new Date(); document.getElementById('exchange-update-time').innerText = `更新於 ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
                     if (isManual) showMsg("✅ 匯率更新成功！\n\n1 TWD = " + rateStr + " " + currentTargetCurrency);
@@ -1887,17 +1888,35 @@
             } catch (err) { 
                 console.error("匯率更新失敗:", err);
                 document.getElementById('exchange-update-time').innerText = "更新失敗"; 
-                if (isManual) {
-                    showMsg("⚠️ 獲取匯率失敗！\n\n可能是您電腦的「擋廣告軟體 (AdBlock)」或「公司防火牆」實在太嚴格，將所有的匯率連線都封鎖了。\n\n💡 解法：您可以試著「暫停擋廣告外掛」，或是直接在框框裡「手動輸入」今天的匯率，計算機一樣會完美運作喔！"); 
-                }
+                if (isManual) showMsg("⚠️ 獲取匯率失敗！\n\n請確認您的網路連線狀態。"); 
             }
         }
-		
+
+        window.pressKey = function(key) { currentCalc = currentCalc === "0" || currentCalc === "" ? key : currentCalc + key; updateCalcDisplay(); }
+        window.clearCalc = function() { currentCalc = ""; updateCalcDisplay(); }
+        window.backspaceCalc = function() { if(currentCalc.length > 0) { currentCalc = currentCalc.slice(0, -1); updateCalcDisplay(); } }
+        window.evalCalc = function() { try { currentCalc = String(eval(currentCalc.replace('×','*').replace('÷','/')) || ""); updateCalcDisplay(); } catch(e) { currentCalc = "Error"; updateCalcDisplay(); } }
+        
+        // ★ 這個就是不小心被刪掉的關鍵大腦！★
         window.updateCalcDisplay = function() {
             const sym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
             const r = parseFloat(document.getElementById('base-rate').value) || 41; 
             document.getElementById('calc-display').innerText = currentCalc ? `${sym} ${currentCalc}` : `${sym} 0`;
             const v = parseFloat(currentCalc); document.getElementById('calc-result-twd').innerText = !isNaN(v) ? `≈ NT$ ${Math.round(v/r).toLocaleString()}` : `≈ NT$ 0`;
+        }
+
+        window.copyCalcToExpense = function() { const v = parseFloat(currentCalc); if (!isNaN(v)) { document.getElementById('exp-krw').value = v; calcExpTwd(); } }
+        
+        window.calcExpTwd = function() { 
+            const krw = parseFloat(document.getElementById('exp-krw').value);
+            const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
+            if (!isNaN(krw)) document.getElementById('exp-twd').value = Math.round(krw / r); else document.getElementById('exp-twd').value = '';
+        }
+        
+        window.calcExpKrw = function() { 
+            const twd = parseFloat(document.getElementById('exp-twd').value);
+            const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
+            if (!isNaN(twd)) document.getElementById('exp-krw').value = Math.round(twd * r); else document.getElementById('exp-krw').value = '';
         }
 		
         window.previewExpPhoto = function(event) {

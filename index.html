@@ -230,7 +230,13 @@
                         <input type="number" id="base-rate" value="41" onchange="updateCalcDisplay(); calcExpTwd();" class="w-16 text-right border-b border-gray-400 font-bold text-gray-900 focus:outline-none bg-transparent">
                     </div>
                 </div>
-                <div id="calc-display" class="text-right text-2xl font-bold text-gray-900 mb-4 py-2 border-b border-gray-300 min-h-[40px]">₩ 0</div>
+				<div class="flex justify-between items-end border-b border-gray-300 pb-2 mb-2 mt-2">
+                    <div class="flex bg-gray-100 rounded p-1 shadow-inner shrink-0 mb-1">
+                        <button onclick="setCalcMode('foreign')" id="calc-mode-foreign" class="px-3 py-1.5 text-xs font-bold rounded bg-white shadow-sm text-[#0369a1] transition">外幣輸入</button>
+                        <button onclick="setCalcMode('twd')" id="calc-mode-twd" class="px-3 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800 transition">台幣輸入</button>
+                    </div>
+                    <div id="calc-display" class="text-right text-2xl font-bold text-gray-900 min-h-[36px] break-all">₩ 0</div>
+                </div>
                 <div id="calc-result-twd" class="text-right text-sm font-bold text-muji-accent mb-4">≈ NT$ 0</div>
                 
 				<div class="grid grid-cols-4 gap-2 w-full">
@@ -296,7 +302,7 @@
                         </div>
                         
                         <div class="flex items-center px-3 py-2.5 border-b border-gray-200">
-							<select id="exp-category" class="bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold text-gray-800 outline-none w-[110px] shrink-0 mr-3 shadow-sm cursor-pointer hover:bg-gray-50 transition" style="text-align-last: center;">
+                            <select id="exp-category" class="bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-bold text-gray-800 outline-none w-[110px] shrink-0 mr-3 shadow-sm cursor-pointer hover:bg-gray-50 transition" style="text-align-last: center;">
                                 <option value="food" selected>🍽️ 餐飲</option>
                                 <option value="convenience">🏪 便利商店</option>
                                 <option value="supermarket">🛒 超市</option>
@@ -306,21 +312,20 @@
                                 <option value="ticket">🎫 門票</option>
                                 <option value="stay">🛏️ 住宿</option>
                                 <option value="other">🧾 其他</option>
-                            </select>                            <input type="text" id="exp-name" placeholder="輸入消費品項..." class="flex-1 min-w-0 text-sm font-bold text-gray-900 bg-transparent outline-none">
+                            </select>                            
+                            <input type="text" id="exp-name" placeholder="輸入消費品項..." class="flex-1 min-w-0 text-sm font-bold text-gray-900 bg-transparent outline-none">
                         </div>
                         
                         <div class="flex items-center px-3 py-3 bg-[#f0f9ff] border-b border-gray-200">
-							<div class="flex items-center flex-1 border-r border-[#bae6fd] pr-3">
+                            <div class="flex items-center flex-1 border-r border-[#bae6fd] pr-3">
                                 <span id="exp-foreign-symbol" class="text-[#0284c7] font-bold text-sm mr-2">₩</span>
-                                <input type="number" id="exp-krw" placeholder="外幣" oninput="calcExpTwd()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
+                                <input type="text" inputmode="numeric" id="exp-krw" placeholder="外幣" oninput="calcExpTwd()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
                             </div>
                             <div class="flex items-center flex-1 pl-3">
                                 <span class="text-[#0369a1] font-bold text-sm mr-2">NT$</span>
-                                <input type="number" id="exp-twd" placeholder="台幣" oninput="calcExpKrw()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
+                                <input type="text" inputmode="numeric" id="exp-twd" placeholder="台幣" oninput="calcExpKrw()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
                             </div>
-                        </div>
-
-                        <div class="px-3 py-2.5 border-b border-gray-200 bg-[#fffbeb]">
+                        </div> <div class="px-3 py-2.5 border-b border-gray-200 bg-[#fffbeb]">
                             <div class="flex justify-between items-center mb-1.5">
                                 <span class="text-xs font-bold text-[#854d0e] flex items-center">
                                     <i class="fas fa-user-check mr-1.5"></i>代墊人 (誰付錢)
@@ -1909,25 +1914,75 @@
         window.evalCalc = function() { try { currentCalc = String(eval(currentCalc.replace('×','*').replace('÷','/')) || ""); updateCalcDisplay(); } catch(e) { currentCalc = "Error"; updateCalcDisplay(); } }
         
         // ★ 這個就是不小心被刪掉的關鍵大腦！★
-        window.updateCalcDisplay = function() {
+		let calcMode = 'foreign';
+        window.setCalcMode = function(mode) {
+            calcMode = mode;
+            if(mode === 'foreign') {
+                document.getElementById('calc-mode-foreign').className = "px-3 py-1.5 text-xs font-bold rounded bg-white shadow-sm text-[#0369a1] transition";
+                document.getElementById('calc-mode-twd').className = "px-3 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800 transition";
+            } else {
+                document.getElementById('calc-mode-twd').className = "px-3 py-1.5 text-xs font-bold rounded bg-white shadow-sm text-[#0369a1] transition";
+                document.getElementById('calc-mode-foreign').className = "px-3 py-1.5 text-xs font-bold rounded text-gray-500 hover:text-gray-800 transition";
+            }
+            updateCalcDisplay();
+        };
+
+		window.updateCalcDisplay = function() {
             const sym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
             const r = parseFloat(document.getElementById('base-rate').value) || 41; 
-            document.getElementById('calc-display').innerText = currentCalc ? `${sym} ${currentCalc}` : `${sym} 0`;
-            const v = parseFloat(currentCalc); document.getElementById('calc-result-twd').innerText = !isNaN(v) ? `≈ NT$ ${Math.round(v/r).toLocaleString()}` : `≈ NT$ 0`;
+            const v = parseFloat(currentCalc); 
+            
+            // ★ 將計算機上的數字自動加上千分位 ★
+            const formattedCalc = currentCalc ? currentCalc.replace(/\d+/g, m => Number(m).toLocaleString()) : '0';
+            
+            if (calcMode === 'foreign') {
+                document.getElementById('calc-display').innerText = `${sym} ${formattedCalc}`;
+                document.getElementById('calc-result-twd').innerText = !isNaN(v) ? `≈ NT$ ${Math.round(v/r).toLocaleString()}` : `≈ NT$ 0`;
+            } else {
+                document.getElementById('calc-display').innerText = `NT$ ${formattedCalc}`;
+                document.getElementById('calc-result-twd').innerText = !isNaN(v) ? `≈ ${sym} ${Math.round(v*r).toLocaleString()}` : `≈ ${sym} 0`;
+            }
         }
 
-        window.copyCalcToExpense = function() { const v = parseFloat(currentCalc); if (!isNaN(v)) { document.getElementById('exp-krw').value = v; calcExpTwd(); } }
-        
+        window.copyCalcToExpense = function() { 
+            const v = parseFloat(currentCalc); 
+            if (!isNaN(v)) { 
+                if (calcMode === 'foreign') {
+                    document.getElementById('exp-krw').value = v; 
+                    calcExpTwd(); 
+                } else {
+                    document.getElementById('exp-twd').value = v; 
+                    calcExpKrw(); 
+                }
+            } 
+        }
+
         window.calcExpTwd = function() { 
-            const krw = parseFloat(document.getElementById('exp-krw').value);
+            let inputEl = document.getElementById('exp-krw');
+            let rawVal = inputEl.value.replace(/,/g, ''); // 移除逗號以便計算
+            const krw = parseFloat(rawVal);
+            
+            // 即時替輸入框加上千分位
+            if (!isNaN(krw) && rawVal !== '') inputEl.value = krw.toLocaleString();
+            else if (rawVal === '') inputEl.value = '';
+
             const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
-            if (!isNaN(krw)) document.getElementById('exp-twd').value = Math.round(krw / r); else document.getElementById('exp-twd').value = '';
+            if (!isNaN(krw)) document.getElementById('exp-twd').value = Math.round(krw / r).toLocaleString(); 
+            else document.getElementById('exp-twd').value = '';
         }
         
         window.calcExpKrw = function() { 
-            const twd = parseFloat(document.getElementById('exp-twd').value);
+            let inputEl = document.getElementById('exp-twd');
+            let rawVal = inputEl.value.replace(/,/g, ''); // 移除逗號以便計算
+            const twd = parseFloat(rawVal);
+
+            // 即時替輸入框加上千分位
+            if (!isNaN(twd) && rawVal !== '') inputEl.value = twd.toLocaleString();
+            else if (rawVal === '') inputEl.value = '';
+
             const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
-            if (!isNaN(twd)) document.getElementById('exp-krw').value = Math.round(twd * r); else document.getElementById('exp-krw').value = '';
+            if (!isNaN(twd)) document.getElementById('exp-krw').value = Math.round(twd * r).toLocaleString(); 
+            else document.getElementById('exp-krw').value = '';
         }
 		
         window.previewExpPhoto = function(event) {
@@ -2018,8 +2073,9 @@
         window.saveExpense = async function() {
             const title = document.getElementById('exp-name').value || '未命名消費';
             const category = document.getElementById('exp-category').value;
-            const krw = parseFloat(document.getElementById('exp-krw').value) || 0; 
-            const twd = parseFloat(document.getElementById('exp-twd').value) || 0;
+			// 💡 儲存時把逗號拔掉，才能以正確的數字格式存進雲端
+            const krw = parseFloat(document.getElementById('exp-krw').value.replace(/,/g, '')) || 0; 
+            const twd = parseFloat(document.getElementById('exp-twd').value.replace(/,/g, '')) || 0;
             const rate = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41;
             const payer = selectedPayer;
             const dateVal = document.getElementById('exp-date').value;
@@ -2066,8 +2122,9 @@
             document.getElementById('exp-form-title').innerText = '修改記帳紀錄';
             document.getElementById('exp-name').value = ex.title || '';
             document.getElementById('exp-category').value = ex.category || 'food';
-            document.getElementById('exp-krw').value = ex.krw || '';
-            document.getElementById('exp-twd').value = ex.twd || '';
+			// 💡 點擊修改舊紀錄時，自動把千分位逗號加上去
+            document.getElementById('exp-krw').value = ex.krw ? ex.krw.toLocaleString() : '';
+            document.getElementById('exp-twd').value = ex.twd ? ex.twd.toLocaleString() : '';
             if(document.getElementById('exp-rate')) document.getElementById('exp-rate').value = ex.rate || '';
 			selectedPayer = ex.payer || (travelMembers.length > 0 ? travelMembers[0] : ''); renderPayerRadios();
             selectedSplitMembers = [...(ex.splitMembers || [])]; renderSplitMembersCheckboxes();

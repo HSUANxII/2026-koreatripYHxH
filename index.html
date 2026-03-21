@@ -1847,19 +1847,28 @@
                 if (isManual) document.getElementById('exchange-update-time').innerText = "更新中...";
                 
                 let rate = null;
-                const target = currentTargetCurrency.toUpperCase();
+                const targetLower = currentTargetCurrency.toLowerCase();
+                const targetUpper = currentTargetCurrency.toUpperCase();
                 
                 try {
-                    // 引擎 A：主要匯率庫
-                    const res1 = await fetch('https://open.er-api.com/v6/latest/TWD');
+                    // 🚀 引擎 A：全球最大 CDN 資源庫 (偽裝成靜態檔案，100% 避開擋廣告軟體)
+                    const res1 = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/twd.json');
                     const data1 = await res1.json();
-                    if (data1 && data1.rates && data1.rates[target]) rate = data1.rates[target];
+                    if (data1 && data1.twd && data1.twd[targetLower]) rate = data1.twd[targetLower];
+                    else throw new Error("A沒資料");
                 } catch(e1) {
-                    console.log("引擎A受阻，啟動引擎B備援...");
-                    // 引擎 B：備用匯率庫 (如果 A 掛了或被擋，自動切換)
-                    const res2 = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
-                    const data2 = await res2.json();
-                    if (data2 && data2.rates && data2.rates[target]) rate = data2.rates[target];
+                    try {
+                        // 🚀 引擎 B：標準備用 API
+                        const res2 = await fetch('https://open.er-api.com/v6/latest/TWD');
+                        const data2 = await res2.json();
+                        if (data2 && data2.rates && data2.rates[targetUpper]) rate = data2.rates[targetUpper];
+                        else throw new Error("B沒資料");
+                    } catch(e2) {
+                        // 🚀 引擎 C：終極備用 API
+                        const res3 = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
+                        const data3 = await res3.json();
+                        if (data3 && data3.rates && data3.rates[targetUpper]) rate = data3.rates[targetUpper];
+                    }
                 }
 
                 if (rate !== null) {
@@ -1873,18 +1882,13 @@
                     const n = new Date(); document.getElementById('exchange-update-time').innerText = `更新於 ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
                     if (isManual) showMsg("✅ 匯率更新成功！\n\n1 TWD = " + rateStr + " " + currentTargetCurrency);
                 } else {
-                    throw new Error("無法取得匯率");
+                    throw new Error("所有匯率引擎皆失效");
                 }
             } catch (err) { 
                 console.error("匯率更新失敗:", err);
                 document.getElementById('exchange-update-time').innerText = "更新失敗"; 
                 if (isManual) {
-                    // 如果判斷是本機端開啟，給予專屬提示
-                    if (window.location.protocol === 'file:') {
-                        showMsg("⚠️ 獲取匯率失敗！\n\n因為您現在是用電腦的資料夾 (file:///) 開啟，瀏覽器安全機制會阻擋外部連線。\n\n💡 解決方式：請把檔案上傳到 GitHub，並使用您的「專屬線上網址」開啟，就能正常抓取囉！");
-                    } else {
-                        showMsg("獲取匯率失敗，請確認您的網路連線狀態。"); 
-                    }
+                    showMsg("⚠️ 獲取匯率失敗！\n\n可能是您電腦的「擋廣告軟體 (AdBlock)」或「公司防火牆」實在太嚴格，將所有的匯率連線都封鎖了。\n\n💡 解法：您可以試著「暫停擋廣告外掛」，或是直接在框框裡「手動輸入」今天的匯率，計算機一樣會完美運作喔！"); 
                 }
             }
         }

@@ -1139,9 +1139,19 @@
                     </div>`).join('') + `</div>`;
             } else if (b.type === 'alert') {
                 return `<div class="p-3 rounded border text-xs flex items-start border-black/5 shadow-sm" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">${b.icon ? `<span class="mr-2 text-base">${b.icon}</span>` : ''}<div class="whitespace-pre-wrap flex-1 leading-relaxed break-words">${b.text}</div></div>`;
-            } else if (b.type === 'grid') {
-                return `<div class="grid gap-1 text-[11px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">${b.rows.flatMap(r => r).map(cell => `<div class="bg-gray-50 border p-1 rounded text-center break-words">${cell}</div>`).join('')}</div>`;
-            } else if (b.type === 'text') {
+			} else if (b.type === 'grid') {
+                const hBg = toHex(b.style || '#f3f4f6');
+                const hText = toHex(b.textColor || '#374151');
+                const hBodyBg = toHex(b.bodyStyle || '#f9fafb');
+                const hBodyText = toHex(b.bodyTextColor || '#374151'); // ★ 新增讀取表格文字顏色
+                return `<div class="grid gap-1 text-[11px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">${
+                    b.rows.map((r, rIdx) => 
+                        r.map(cell => 
+                            `<div class="p-1.5 rounded text-center break-words font-bold border border-black/5 shadow-sm flex items-center justify-center" style="background-color: ${rIdx === 0 ? hBg : hBodyBg}; color: ${rIdx === 0 ? hText : hBodyText};">${cell}</div>`
+                        ).join('')
+                    ).join('')
+                }</div>`;
+				} else if (b.type === 'text') {
                 return `<p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed break-words">${b.text}</p>`;
 			} else if (b.type === 'split') {
                 return `<div class="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-3 mt-2 hide-scrollbar w-full">
@@ -1241,12 +1251,12 @@
             const safeDataAction = actionTemplate.replace(/;\s*renderBlocksEditor\(\)/g, '').replace(/;\s*updateInfoModalUI\(\)/g, '');
 
             return `
-            <div class="flex overflow-x-auto gap-2 py-1 hide-scrollbar w-full items-center pl-1">
-                <div class="relative w-6 h-6 flex-shrink-0 rounded-full overflow-hidden border border-gray-300 shadow-sm" style="background-color: ${currentHex};">
-                    <input type="color" value="${currentHex}" 
+			<div class="flex overflow-x-auto gap-2 py-1 hide-scrollbar w-full items-center pl-1 color-palette-scroll">                <div class="relative w-6 h-6 flex-shrink-0 rounded-full overflow-hidden border border-gray-300 shadow-sm" style="background-color: ${currentHex};">
+				<input type="color" value="${currentHex}" 
                         oninput="${safeDataAction.replace('$$VAL$$', `'+this.value+'`)}; this.parentElement.style.backgroundColor=this.value;" 
+                        onchange="${actionTemplate.replace('$$VAL$$', `'+this.value+'`)}"
                         class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer opacity-0">
-                </div>
+					</div>
                 
                 <div class="w-[1px] h-4 bg-gray-300 mx-1 shrink-0"></div>
                 
@@ -1352,22 +1362,61 @@
         window.deleteBlock = function(idx) { editState.blocks.splice(idx, 1); renderBlocksEditor(); }
         window.moveBlock = function(idx, dir) { if (dir===-1 && idx>0) { const temp = editState.blocks[idx]; editState.blocks[idx] = editState.blocks[idx-1]; editState.blocks[idx-1] = temp; } if (dir===1 && idx<editState.blocks.length-1) { const temp = editState.blocks[idx]; editState.blocks[idx] = editState.blocks[idx+1]; editState.blocks[idx+1] = temp; } renderBlocksEditor(); }
         
-        window.ub = function(idx, field, val) { 
+		window.ub = function(idx, field, val) { 
             editState.blocks[idx][field] = val; 
+            // 提醒框即時預覽
             const alertTextEl = document.getElementById(`preview-alert-text-${idx}`);
+            const alertPreview = document.getElementById(`preview-alert-${idx}`);
             if(field === 'text' && alertTextEl) alertTextEl.innerText = val || '提醒內容';
+            if(alertPreview) {
+                if(field === 'style') alertPreview.style.backgroundColor = toHex(val);
+                if(field === 'textColor') alertPreview.style.color = toHex(val);
+            }
+            // 表格即時預覽
+            const b = editState.blocks[idx];
+            if (b && b.type === 'grid') {
+                for(let r=0; r<b.rows.length; r++) {
+                    for(let c=0; c<b.cols; c++) {
+                        const cell = document.getElementById(`preview-grid-${idx}-${r}-${c}`);
+                        if (cell) {
+                            if (r === 0) {
+                                if (field === 'style') cell.style.backgroundColor = toHex(val);
+                                if (field === 'textColor') cell.style.color = toHex(val);
+                            } else {
+                                if (field === 'bodyStyle') cell.style.backgroundColor = toHex(val);
+                                if (field === 'bodyTextColor') cell.style.color = toHex(val);
+                            }
+                        }
+                    }
+                }
+            }
         }
 		
 		window.usplit = function(bIdx, rIdx, field, val) { 
             editState.blocks[bIdx].routes[rIdx][field] = val; 
+            // 分流卡片即時預覽
+            const bgEl = document.getElementById(`preview-split-bg-${bIdx}-${rIdx}`);
+            const badgeEl = document.getElementById(`preview-split-badge-${bIdx}-${rIdx}`);
+            const titleEl = document.getElementById(`preview-split-title-${bIdx}-${rIdx}`);
+            const textEl = document.getElementById(`preview-split-text-${bIdx}-${rIdx}`);
+            if(field === 'style' && bgEl) bgEl.style.backgroundColor = toHex(val);
+            if(field === 'textColor' && badgeEl) badgeEl.style.color = toHex(val);
+            if(field === 'titleColor') {
+                if(titleEl) titleEl.style.color = toHex(val);
+                if(textEl) textEl.style.color = toHex(val);
+            }
         }
 		
         window.ug = function(bIdx, iIdx, field, val) { 
             editState.blocks[bIdx].items[iIdx][field] = val; 
+            // 標籤列即時預覽
             const badgeEl = document.getElementById(`preview-badge-${bIdx}-${iIdx}`);
             const titleEl = document.getElementById(`preview-title-${bIdx}-${iIdx}`);
             if(field === 'badge' && badgeEl) badgeEl.innerText = val || '標籤';
             if(field === 'title' && titleEl) titleEl.innerText = val || '標題文字';
+            if(field === 'style' && badgeEl) badgeEl.style.backgroundColor = toHex(val);
+            if(field === 'textColor' && badgeEl) badgeEl.style.color = toHex(val);
+            if(field === 'titleColor' && titleEl) titleEl.style.color = toHex(val);
         }
         
 		window.addBadgeDetail = function(bIdx, iIdx) { editState.blocks[bIdx].items[iIdx].details.push({text: '', isLink: false, linkName: ''}); renderBlocksEditor(); }
@@ -1385,8 +1434,17 @@
         window.udg = function(bIdx, iIdx, dIdx, field, val) { const detail = editState.blocks[bIdx].items[iIdx].details[dIdx]; if (field === 'isLink') detail.isLink = (val === 'true'); else detail[field] = val; }
         window.updateGridCols = function(idx, delta) { const b = editState.blocks[idx]; const newCols = b.cols + delta; if (newCols > 0 && newCols <= 5) { b.cols = newCols; b.rows.forEach(r => { if (delta > 0) r.push(''); else r.pop(); }); renderBlocksEditor(); } }
         window.addGridRow = function(idx) { const b = editState.blocks[idx]; b.rows.push(new Array(b.cols).fill('')); renderBlocksEditor(); }
-        window.delGridRow = function(idx, rIdx) { editState.blocks[idx].rows.splice(rIdx, 1); renderBlocksEditor(); }
-        window.ugData = function(bIdx, rIdx, cIdx, val) { editState.blocks[bIdx].rows[rIdx][cIdx] = val; }
+		window.moveGridRow = function(bIdx, rIdx, dir) {
+            const rows = editState.blocks[bIdx].rows;
+            if (dir === -1 && rIdx > 0) { [rows[rIdx - 1], rows[rIdx]] = [rows[rIdx], rows[rIdx - 1]]; renderBlocksEditor(); }
+            if (dir === 1 && rIdx < rows.length - 1) { [rows[rIdx], rows[rIdx + 1]] = [rows[rIdx + 1], rows[rIdx]]; renderBlocksEditor(); }
+        }
+		window.ugData = function(bIdx, rIdx, cIdx, val) { 
+            editState.blocks[bIdx].rows[rIdx][cIdx] = val; 
+            // 讓上方的預覽表格能跟著你打字即時變換！
+            const previewCell = document.getElementById(`preview-grid-${bIdx}-${rIdx}-${cIdx}`);
+            if(previewCell) previewCell.innerText = val || '　';
+        }
         window.addBadgeItem = function(idx) { editState.blocks[idx].items.push({ style: '#f3f4f6', textColor: '#374151', titleColor: '#111827', badge: '新標籤', title: '', details: [{text: '', isLink: false, linkName: ''}] }); renderBlocksEditor(); }
 		window.delBadgeItem = function(bIdx, iIdx) { editState.blocks[bIdx].items.splice(iIdx, 1); renderBlocksEditor(); }
         window.splitBadgeBlock = function(bIdx, iIdx) {
@@ -1429,9 +1487,12 @@
 
 		window.renderBlocksEditor = function() {
             const container = document.getElementById('info-edit-blocks-container');
+            // ★ 記憶魔法：記住目前所有調色盤滑到哪裡了 ★
+            const scrolls = Array.from(container.querySelectorAll('.color-palette-scroll')).map(el => el.scrollLeft);
+            
             container.innerHTML = editState.blocks.map((b, idx) => `
                 <div class="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-sm mb-4">
-                    <div class="bg-gray-100 px-3 py-2 flex justify-between items-center border-b border-gray-200">
+				<div class="bg-gray-100 px-3 py-2 flex justify-between items-center border-b border-gray-200">
                         <span class="text-xs font-bold text-gray-600 bg-gray-200 px-2 py-0.5 rounded-md shadow-sm">${b.type==='badge'?'🏷️ 標籤列':b.type==='alert'?'⚠️ 提醒框':b.type==='grid'?'📊 表格':b.type==='split'?'🗂️ 分組路線':'📝 純文字'}</span>
                         <div class="flex space-x-1 bg-white rounded border border-gray-200 shadow-sm p-0.5">
                             <button onclick="moveBlock(${idx}, -1)" class="p-1 text-gray-500 hover:text-[#0369a1] transition" title="整個大區塊上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
@@ -1477,29 +1538,28 @@
                                             <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">內文</span>${colorPaletteHTML(it.titleColor, `ug(${idx}, ${i}, 'titleColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                         </div>
                                         
-                                        <div class="space-y-2 mt-4 bg-white border border-gray-200 p-2.5 rounded-lg shadow-inner">
+											<div class="space-y-2 mt-4 bg-white border border-gray-200 p-2.5 rounded-lg shadow-inner">
                                             <div class="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">📋 隸屬於此群組的明細列 (可上下微調)</div>
                                             ${it.details.map((d, dIdx) => `
-                                                <div class="flex items-start space-x-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm relative">
-                                                    <div class="flex flex-col space-y-1.5 w-full">
-                                                        <div class="flex space-x-1.5">
-                                                            <select onchange="udg(${idx}, ${i}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded p-1 text-[10px] font-bold bg-white shadow-sm shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
-                                                            ${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'linkName', this.value)" placeholder="按鈕名" class="w-16 border border-gray-300 rounded p-1 text-xs font-bold outline-none bg-white shadow-inner shrink-0">` : ''}
+                                                <div class="flex flex-col space-y-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm">
+                                                    <div class="flex justify-between items-center">
+                                                        <div class="flex items-center space-x-1.5">
+                                                            <select onchange="udg(${idx}, ${i}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded px-1.5 py-0.5 text-[10px] font-bold bg-white shadow-sm shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
+															${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'linkName', this.value)" placeholder="按鈕名" class="w-24 border border-gray-300 rounded px-1.5 py-0.5 text-xs font-bold outline-none bg-white shadow-inner shrink-0">` : ''}                                                        </div>
+                                                        <div class="flex items-center space-x-0.5 bg-white border border-gray-200 rounded px-0.5 py-0.5 shadow-sm shrink-0">
+                                                            <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, -1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#0369a1] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                            <div class="w-[1px] h-3 bg-gray-200"></div>
+                                                            <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, 1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#0369a1] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                            <div class="w-[1px] h-3 bg-gray-200"></div>
+                                                            <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="px-1.5 py-0.5 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
                                                         </div>
-                                                        <input type="text" value="${d.text||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" placeholder="${d.isLink?'貼上網址 https://...':'輸入附加說明內容...'}" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white shadow-inner">
                                                     </div>
-                                                    <div class="flex flex-col items-center justify-between space-y-1 shrink-0 bg-white border border-gray-200 rounded p-0.5 shadow-sm h-full">
-                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-[#0369a1] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
-                                                        <div class="w-3 h-[1px] bg-gray-200"></div>
-                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-[#0369a1] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
-                                                        <div class="w-3 h-[1px] bg-gray-200"></div>
-                                                        <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="p-1 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
-                                                    </div>
+                                                    <textarea oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" rows="2" placeholder="${d.isLink?'貼上網址 https://...':'輸入附加說明內容...'}" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white shadow-inner leading-relaxed break-words resize-y">${d.text||''}</textarea>
                                                 </div>
                                             `).join('')}
                                             <button onclick="addBadgeDetail(${idx}, ${i})" class="w-full mt-2 py-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded hover:bg-gray-100 transition shadow-sm">+ 新增一行明細</button>
-                                        </div>
-                                    </div>
+											</div>
+										</div>
                                 `).join('')}
                                 <button onclick="addBadgeItem(${idx})" class="w-full py-2 text-[12px] font-bold text-[#0369a1] bg-[#f0f9ff] border border-dashed border-[#bae6fd] rounded-lg hover:bg-[#e0f2fe] transition shadow-sm">+ 新增一個大群組</button>
                             </div>
@@ -1507,7 +1567,7 @@
                             <div class="space-y-2">
                                 <div class="mb-2 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm">
                                     <span class="text-[10px] font-bold text-gray-400 block mb-1 uppercase">樣式預覽 Preview</span>
-                                    <div class="p-2 rounded border text-xs flex items-start border-black/5" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">
+                                    <div id="preview-alert-${idx}" class="p-2 rounded border text-xs flex items-start border-black/5 transition-colors duration-150" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">
                                         ${b.icon ? `<span class="mr-2 text-sm">${b.icon}</span>` : ''}
                                         <div id="preview-alert-text-${idx}" class="whitespace-pre-wrap flex-1 leading-relaxed">${b.text || '提醒內容'}</div>
                                     </div>
@@ -1527,17 +1587,46 @@
                                 </div>
                                 <textarea oninput="ub(${idx}, 'text', this.value)" rows="5" placeholder="提醒內容" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>
                             </div>
-                        ` : b.type === 'grid' ? `
-                            <div class="flex items-center space-x-2 mb-2 bg-gray-50 p-1.5 rounded border border-gray-200"><span class="text-[11px] font-bold text-gray-700">欄位數:</span><button onclick="updateGridCols(${idx}, -1)" class="w-5 h-5 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold">-</button><span class="text-xs font-bold text-gray-900 w-4 text-center">${b.cols}</span><button onclick="updateGridCols(${idx}, 1)" class="w-5 h-5 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold">+</button></div>
-                            <div class="space-y-1">
+						` : b.type === 'grid' ? `
+                            <div class="flex items-center space-x-2 mb-3 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm"><span class="text-[11px] font-bold text-gray-700">欄位數:</span><button onclick="updateGridCols(${idx}, -1)" class="w-6 h-6 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold shadow-sm hover:bg-gray-100 transition">-</button><span class="text-xs font-bold text-gray-900 w-4 text-center">${b.cols}</span><button onclick="updateGridCols(${idx}, 1)" class="w-6 h-6 flex items-center justify-center bg-white border border-gray-300 rounded text-xs font-bold shadow-sm hover:bg-gray-100 transition">+</button></div>
+                            
+							<div class="mb-3 p-2.5 rounded-lg bg-gray-100 border border-dashed border-gray-300 shadow-inner opacity-80 pointer-events-none">
+                                <span class="text-[9px] font-bold text-gray-400 block mb-2 uppercase tracking-wider text-center">-- 樣式預覽 Preview --</span>
+                                <div class="grid gap-0.5 text-[9px]" style="grid-template-columns: repeat(${b.cols}, minmax(0, 1fr));">
+                                    ${b.rows.map((row, rIdx) => 
+                                        row.map((cell, cIdx) => 
+                                            `<div id="preview-grid-${idx}-${rIdx}-${cIdx}" class="p-1 rounded-sm text-center break-words font-bold border border-black/5 shadow-sm flex items-center justify-center leading-tight" style="background-color: ${rIdx === 0 ? toHex(b.style || '#f3f4f6') : toHex(b.bodyStyle || '#f9fafb')}; color: ${rIdx === 0 ? toHex(b.textColor || '#374151') : toHex(b.bodyTextColor || '#374151')};">${cell||'　'}</div>`
+                                        ).join('')
+                                    ).join('')}
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5 mb-4 bg-white border border-gray-200 p-2 rounded-lg shadow-sm">
+                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">表頭底色</span>${colorPaletteHTML(b.style || '#f3f4f6', `ub(${idx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">表頭文字</span>${colorPaletteHTML(b.textColor || '#374151', `ub(${idx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                <div class="flex items-center border-t border-gray-100 pt-1.5"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">表格底色</span>${colorPaletteHTML(b.bodyStyle || '#f9fafb', `ub(${idx}, 'bodyStyle', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">表格文字</span>${colorPaletteHTML(b.bodyTextColor || '#374151', `ub(${idx}, 'bodyTextColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                            </div>
+                            
+                            <div class="space-y-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg shadow-inner">
+                                <div class="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">📋 表格內容編輯</div>
                                 ${b.rows.map((row, rIdx) => `
-                                    <div class="flex space-x-1">
-                                        ${row.map((cell, cIdx) => `<input type="text" value="${cell}" oninput="ugData(${idx}, ${rIdx}, ${cIdx}, this.value)" class="w-full min-w-0 border border-gray-300 rounded p-1 text-xs font-bold text-center" placeholder="內容">`).join('')}
-                                        <button onclick="delGridRow(${idx}, ${rIdx})" class="text-red-400 px-1 shrink-0"><i class="fas fa-minus-circle text-[10px]"></i></button>
+                                    <div class="flex items-center bg-white p-1.5 rounded border border-gray-200 shadow-sm relative">
+                                        <div class="flex flex-1 space-x-1.5">
+                                            ${row.map((cell, cIdx) => `<input type="text" value="${cell}" oninput="ugData(${idx}, ${rIdx}, ${cIdx}, this.value)" class="w-full min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold text-center outline-none bg-gray-50 focus:bg-white shadow-inner transition" placeholder="內容">`).join('')}
+                                        </div>
+                                        <div class="flex items-center space-x-0.5 bg-white border border-gray-200 rounded px-0.5 py-0.5 shadow-sm shrink-0 ml-1.5">
+                                            <button onclick="moveGridRow(${idx}, ${rIdx}, -1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#0369a1] transition" title="上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                            <div class="w-[1px] h-3 bg-gray-200"></div>
+                                            <button onclick="moveGridRow(${idx}, ${rIdx}, 1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#0369a1] transition" title="下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                            <div class="w-[1px] h-3 bg-gray-200"></div>
+                                            <button onclick="delGridRow(${idx}, ${rIdx})" class="px-1.5 py-0.5 text-red-400 hover:text-red-600 transition" title="刪除"><i class="fas fa-times text-[10px]"></i></button>
+                                        </div>
                                     </div>
                                 `).join('')}
-                                <button onclick="addGridRow(${idx})" class="w-full mt-2 py-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded">+ 新增列</button>
+                                <button onclick="addGridRow(${idx})" class="w-full mt-2 py-1.5 text-[11px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition shadow-sm">+ 新增一列</button>
                             </div>
+							
 						` : b.type === 'split' ? `
                             <div class="space-y-4">
                                 <span class="text-[12px] font-bold text-[#059669] bg-[#d1fae5] px-2 py-1 rounded-md shadow-sm"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
@@ -1558,12 +1647,12 @@
                                                 }).join('') + '</div>';
                                             }
                                             return `
-                                            <div class="snap-center shrink-0 w-[80%] p-3 rounded-lg shadow-sm flex flex-col border border-black/5 relative overflow-hidden" style="background-color: ${toHex(r.style)};">
+											<div id="preview-split-bg-${idx}-${rIdx}" class="snap-center shrink-0 w-[80%] p-3 rounded-lg shadow-sm flex flex-col border border-black/5 relative overflow-hidden transition-colors duration-150" style="background-color: ${toHex(r.style)};">
                                                 <div class="flex items-center mb-1.5 border-b border-black/5 pb-1.5">
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5" style="color: ${toHex(r.textColor)};">${r.badge || '標籤'}</span>
-                                                    <span class="text-xs font-bold truncate pr-2" style="color: ${toHex(r.titleColor)};">${r.title || '短標題'}</span>
+                                                    <span id="preview-split-badge-${idx}-${rIdx}" class="text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 shrink-0 font-bold bg-white/60 shadow-sm border border-black/5 transition-colors duration-150" style="color: ${toHex(r.textColor)};">${r.badge || '標籤'}</span>
+                                                    <span id="preview-split-title-${idx}-${rIdx}" class="text-xs font-bold truncate pr-2 transition-colors duration-150" style="color: ${toHex(r.titleColor)};">${r.title || '短標題'}</span>
                                                 </div>
-                                                ${r.text ? `<div class="text-[10px] leading-relaxed whitespace-pre-wrap line-clamp-2" style="color: ${toHex(r.titleColor)};">${r.text}</div>` : ''}
+                                                ${r.text ? `<div id="preview-split-text-${idx}-${rIdx}" class="text-[10px] leading-relaxed whitespace-pre-wrap line-clamp-2 transition-colors duration-150" style="color: ${toHex(r.titleColor)};">${r.text}</div>` : ''}
                                                 ${dHtml}
                                             </div>`;
                                         }).join('')}
@@ -1586,25 +1675,37 @@
                                             
                                             <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none shadow-inner">
                                             <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none shadow-inner">
-                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed shadow-inner">${r.text}</textarea>
+											<textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed shadow-inner">${r.text}</textarea>
                                             
+                                            <div class="space-y-1.5 mt-3 bg-white border border-gray-200 p-2 rounded-lg shadow-sm">
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">標籤</span>${colorPaletteHTML(r.textColor, `usplit(${idx}, ${rIdx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">內文</span>${colorPaletteHTML(r.titleColor, `usplit(${idx}, ${rIdx}, 'titleColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                            </div>
+
                                             <div class="space-y-2 mt-4 bg-white border border-gray-200 p-2.5 rounded-lg shadow-inner">
                                                 <div class="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">📋 屬於此卡片的明細列 (自動偵測網址)</div>
-                                                ${(r.details||[]).map((d, dIdx) => `
-                                                    <div class="flex items-start space-x-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm relative">
-                                                        <textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="輸入文字或直接貼上網址..." class="flex-1 min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white leading-relaxed shadow-inner">${d.text||''}</textarea>
-                                                        <div class="flex flex-col items-center justify-between space-y-1 shrink-0 bg-white border border-gray-200 rounded p-0.5 shadow-sm h-full">
-                                                            <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-[#059669] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
-                                                            <div class="w-3 h-[1px] bg-gray-200"></div>
-                                                            <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-[#059669] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
-                                                            <div class="w-3 h-[1px] bg-gray-200"></div>
-                                                            <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="p-1 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
+												${(r.details||[]).map((d, dIdx) => `
+                                                    <div class="flex flex-col space-y-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm">
+                                                        <div class="flex justify-between items-center">
+                                                            <div class="flex items-center space-x-1.5">
+                                                                <select onchange="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded px-1.5 py-0.5 text-[10px] font-bold bg-white shadow-sm shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
+                                                                ${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'linkName', this.value); updateInfoModalUI()" placeholder="按鈕名" class="w-24 border border-gray-300 rounded px-1.5 py-0.5 text-xs font-bold outline-none bg-white shadow-inner shrink-0">` : ''}
+                                                            </div>
+                                                            <div class="flex items-center space-x-0.5 bg-white border border-gray-200 rounded px-0.5 py-0.5 shadow-sm shrink-0">
+                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, -1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#059669] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                                <div class="w-[1px] h-3 bg-gray-200"></div>
+                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, 1)" class="px-1.5 py-0.5 text-gray-400 hover:text-[#059669] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                                <div class="w-[1px] h-3 bg-gray-200"></div>
+                                                                <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="px-1.5 py-0.5 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
+                                                            </div>
                                                         </div>
+                                                        <textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="${d.isLink?'貼上網址 https://...':'輸入附加說明內容...'}" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white leading-relaxed shadow-inner resize-y">${d.text||''}</textarea>
                                                     </div>
                                                 `).join('')}
                                                 <button onclick="addSplitDetail(${idx}, ${rIdx})" class="w-full mt-2 py-1.5 text-[11px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition shadow-sm">+ 新增一行明細</button>
                                             </div>
-
+											
                                             <div class="space-y-1.5 mt-3 bg-white border border-gray-200 p-2 rounded-lg shadow-sm">
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                                 <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">標籤</span>${colorPaletteHTML(r.textColor, `usplit(${idx}, ${rIdx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
@@ -1616,8 +1717,13 @@
                                 <button onclick="addSplitRoute(${idx})" class="w-full py-2 text-[12px] font-bold text-[#059669] bg-[#d1fae5] border border-dashed border-[#a7f3d0] rounded-lg hover:bg-[#a7f3d0] transition shadow-sm mt-2">+ 新增一張滑動卡片</button>
                             </div>
                         ` : `<textarea oninput="ub(${idx}, 'text', this.value)" rows="3" placeholder="輸入文字..." class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none shadow-inner">${b.text}</textarea>`}
-                    </div>
+					</div>
                 </div>`).join('');
+                
+            // ★ 恢復魔法：重新畫完畫面後，把調色盤推回剛剛的位置 ★
+            Array.from(container.querySelectorAll('.color-palette-scroll')).forEach((el, i) => {
+                if (scrolls[i]) el.scrollLeft = scrolls[i];
+            });
         }
 		
 		window.fetchWeather = async function(force = false) {

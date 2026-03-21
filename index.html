@@ -211,8 +211,18 @@
             </div>            
             <div class="muji-card p-4 mb-4 border border-gray-200 mt-2">
                 <div class="flex justify-between items-center mb-2">
-                    <div class="flex items-center">
-                        <span class="text-xs font-bold text-gray-800">匯率 (1 TWD = KRW)</span>
+					<div class="flex items-center">
+                        <span class="text-xs font-bold text-gray-800">匯率 (1 TWD = </span>
+                        <select id="target-currency" onchange="changeCurrency(this.value)" class="mx-1 text-[11px] font-bold text-[#b45309] bg-gray-50 rounded border border-gray-300 px-1 py-0.5 outline-none cursor-pointer shadow-sm">
+                            <option value="KRW">KRW 韓元</option>
+                            <option value="JPY">JPY 日圓</option>
+                            <option value="THB">THB 泰銖</option>
+                            <option value="VND">VND 越盾</option>
+                            <option value="USD">USD 美金</option>
+                            <option value="EUR">EUR 歐元</option>
+                            <option value="HKD">HKD 港幣</option>
+                        </select>
+                        <span class="text-xs font-bold text-gray-800">)</span>
                         <span id="exchange-update-time" class="text-[10px] text-gray-500 ml-2 font-normal">更新中...</span>
                     </div>
                     <div class="flex items-center space-x-2">
@@ -300,9 +310,9 @@
                         </div>
                         
                         <div class="flex items-center px-3 py-3 bg-[#f0f9ff] border-b border-gray-200">
-                            <div class="flex items-center flex-1 border-r border-[#bae6fd] pr-3">
-                                <span class="text-[#0284c7] font-bold text-sm mr-2">₩</span>
-                                <input type="number" id="exp-krw" placeholder="韓幣" oninput="calcExpTwd()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
+							<div class="flex items-center flex-1 border-r border-[#bae6fd] pr-3">
+                                <span id="exp-foreign-symbol" class="text-[#0284c7] font-bold text-sm mr-2">₩</span>
+                                <input type="number" id="exp-krw" placeholder="外幣" oninput="calcExpTwd()" class="w-full text-base font-bold text-gray-900 bg-transparent outline-none text-right">
                             </div>
                             <div class="flex items-center flex-1 pl-3">
                                 <span class="text-[#0369a1] font-bold text-sm mr-2">NT$</span>
@@ -503,6 +513,8 @@
         let travelMembers = [];
         let selectedSplitMembers = []; let selectedPayer = ''; 
         let currentCalc = ""; let currentExpBase64 = null; let editingExpId = null; 
+		let currentTargetCurrency = localStorage.getItem('korea_target_currency') || 'KRW';
+        const currencySymbols = { KRW: '₩', JPY: '¥', THB: '฿', VND: '₫', USD: '$', EUR: '€', HKD: 'HK$' };
         let currentExpColor = '#ffffff';
         let memo = '';
         let checklist = [];
@@ -1413,58 +1425,78 @@
 		window.renderBlocksEditor = function() {
             const container = document.getElementById('info-edit-blocks-container');
             container.innerHTML = editState.blocks.map((b, idx) => `
-                <div class="bg-white border border-gray-300 rounded overflow-hidden shadow-sm">
-                    <div class="bg-gray-100 px-2 py-1.5 flex justify-between items-center border-b border-gray-200">
-                        <span class="text-[11px] font-bold text-gray-600 bg-gray-200 px-2 rounded">${b.type==='badge'?'標籤列':b.type==='alert'?'提醒框':b.type==='grid'?'表格':b.type==='split'?'分組路線':'純文字'}</span>
-                        <div class="flex space-x-1"><button onclick="moveBlock(${idx}, -1)" class="p-1 text-gray-500 hover:text-gray-900"><i class="fas fa-arrow-up text-[10px]"></i></button><button onclick="moveBlock(${idx}, 1)" class="p-1 text-gray-500 hover:text-gray-900"><i class="fas fa-arrow-down text-[10px]"></i></button><button onclick="deleteBlock(${idx})" class="p-1 text-red-400 hover:text-red-600 ml-2"><i class="fas fa-times text-xs"></i></button></div>
+                <div class="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-sm mb-4">
+                    <div class="bg-gray-100 px-3 py-2 flex justify-between items-center border-b border-gray-200">
+                        <span class="text-xs font-bold text-gray-600 bg-gray-200 px-2 py-0.5 rounded-md shadow-sm">${b.type==='badge'?'🏷️ 標籤列':b.type==='alert'?'⚠️ 提醒框':b.type==='grid'?'📊 表格':b.type==='split'?'🗂️ 分組路線':'📝 純文字'}</span>
+                        <div class="flex space-x-1 bg-white rounded border border-gray-200 shadow-sm p-0.5">
+                            <button onclick="moveBlock(${idx}, -1)" class="p-1 text-gray-500 hover:text-[#0369a1] transition" title="整個大區塊上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                            <div class="w-[1px] bg-gray-200"></div>
+                            <button onclick="moveBlock(${idx}, 1)" class="p-1 text-gray-500 hover:text-[#0369a1] transition" title="整個大區塊下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                            <div class="w-[1px] bg-gray-200"></div>
+                            <button onclick="deleteBlock(${idx})" class="p-1 text-red-400 hover:text-red-600 transition" title="刪除整個大區塊"><i class="fas fa-trash-alt text-[10px]"></i></button>
+                        </div>
                     </div>
                     <div class="p-3 space-y-2">
                         ${b.type === 'badge' ? `
-                            <div class="space-y-3">
-								${b.items.map((it, i) => `
-                                    <div class="p-2 border border-gray-200 rounded bg-gray-50 relative pb-3 mt-4">
-										<div class="absolute -top-3 right-2 flex space-x-1 z-10">
-                                            <button onclick="moveBadgeItem(${idx}, ${i}, -1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="上移此行程"><i class="fas fa-arrow-up"></i></button>
-                                            <button onclick="moveBadgeItem(${idx}, ${i}, 1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="下移此行程"><i class="fas fa-arrow-down"></i></button>
-                                            ${i < b.items.length - 1 ? `<button onclick="splitBadgeBlock(${idx}, ${i})" class="text-white bg-[#0369a1] hover:bg-[#0284c7] px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="從這裡切斷，讓下方行程獨立成新群組"><i class="fas fa-cut mr-1"></i>從此切斷</button>` : ''}
-                                            ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, ${i})" class="text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="刪除此行程"><i class="fas fa-trash-alt"></i></button>` : ''}
+                            <div class="space-y-4">
+                                ${b.items.map((it, i) => `
+                                    <div class="p-3 border border-gray-300 rounded-lg bg-gray-50 relative mt-4 border-l-4 border-l-[#0369a1] shadow-sm">
+                                        <div class="font-bold text-xs text-[#0369a1] mb-3 border-b border-gray-200 pb-1.5 flex justify-between items-center">
+                                            <span class="bg-[#e0f2fe] px-2 py-0.5 rounded shadow-sm">📍 大群組 ${i + 1} (包含標題與明細)</span>
+                                        </div>
+                                        <div class="absolute -top-3 right-2 flex space-x-1 z-10 bg-white border border-gray-300 p-0.5 rounded shadow-sm">
+                                            <button onclick="moveBadgeItem(${idx}, ${i}, -1)" class="text-gray-600 hover:bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="群組上移"><i class="fas fa-arrow-up"></i></button>
+                                            <div class="w-[1px] bg-gray-200"></div>
+                                            <button onclick="moveBadgeItem(${idx}, ${i}, 1)" class="text-gray-600 hover:bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="群組下移"><i class="fas fa-arrow-down"></i></button>
+                                            <div class="w-[1px] bg-gray-200"></div>
+                                            ${i < b.items.length - 1 ? `<button onclick="splitBadgeBlock(${idx}, ${i})" class="text-[#0369a1] hover:bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="從此切斷分離"><i class="fas fa-cut mr-1"></i>切斷</button><div class="w-[1px] bg-gray-200"></div>` : ''}
+                                            ${b.items.length > 1 ? `<button onclick="delBadgeItem(${idx}, ${i})" class="text-red-500 hover:bg-red-50 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="刪除群組"><i class="fas fa-trash-alt"></i></button>` : ''}
                                         </div>
                                         
-                                        <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm">
-										<span class="text-[10px] font-bold text-gray-400 block mb-1 uppercase">樣式預覽 Preview</span>
+                                        <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm opacity-80">
+                                            <span class="text-[10px] font-bold text-gray-400 block mb-1">樣式預覽</span>
                                             <div class="flex items-start">
                                                 <div id="preview-badge-${idx}-${i}" class="text-[10px] px-2 py-0.5 rounded mr-2 border border-black/5 shrink-0 mt-0.5" style="background-color: ${toHex(it.style)}; color: ${toHex(it.textColor)};">${it.badge || '標籤'}</div>
                                                 <div id="preview-title-${idx}-${i}" class="text-sm font-bold flex-1" style="color: ${toHex(it.titleColor)};">${it.title || '標題文字'}</div>
                                             </div>
                                         </div>
 
-                                        <div class="space-y-1.5 pr-6">
-                                            <input type="text" value="${it.badge||''}" oninput="ug(${idx}, ${i}, 'badge', this.value)" placeholder="標籤(例:時間/去程)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white">
-                                            <input type="text" value="${it.title||''}" oninput="ug(${idx}, ${i}, 'title', this.value)" placeholder="主標題文字" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none bg-white">
+                                        <div class="space-y-2 pr-2">
+                                            <input type="text" value="${it.badge||''}" oninput="ug(${idx}, ${i}, 'badge', this.value)" placeholder="標籤 (例:時間/去程)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white shadow-inner">
+                                            <input type="text" value="${it.title||''}" oninput="ug(${idx}, ${i}, 'title', this.value)" placeholder="主標題文字" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none bg-white shadow-inner">
                                         </div>
-                                        <div class="space-y-1.5 mt-2 bg-white border border-gray-200 p-2 rounded shadow-sm">
+                                        
+                                        <div class="space-y-1.5 mt-3 bg-white border border-gray-200 p-2 rounded-lg shadow-sm">
                                             <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">底色</span>${colorPaletteHTML(it.style, `ug(${idx}, ${i}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
-                                            <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">標題</span>${colorPaletteHTML(it.textColor, `ug(${idx}, ${i}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                            <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">標籤</span>${colorPaletteHTML(it.textColor, `ug(${idx}, ${i}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                             <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">內文</span>${colorPaletteHTML(it.titleColor, `ug(${idx}, ${i}, 'titleColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                         </div>
-                                        <div class="space-y-1.5 mt-2">
+                                        
+                                        <div class="space-y-2 mt-4 bg-white border border-gray-200 p-2.5 rounded-lg shadow-inner">
+                                            <div class="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">📋 隸屬於此群組的明細列 (可上下微調)</div>
                                             ${it.details.map((d, dIdx) => `
-                                                <div class="flex space-x-1 mt-1.5">
-                                                    <select onchange="udg(${idx}, ${i}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded p-1 text-[10px] font-bold bg-gray-100 shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
-                                                    ${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'linkName', this.value)" placeholder="按鈕名" class="w-16 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white text-gray-700 shrink-0">` : ''}
-													<input type="text" value="${d.text||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" placeholder="${d.isLink?'https://...':'附加說明內容'}" class="flex-1 min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white">
-                                                    <div class="flex items-center space-x-1 shrink-0 bg-gray-100 border border-gray-200 rounded px-1">
-                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-gray-800 transition" title="上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
-                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-gray-800 transition" title="下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
-                                                        <div class="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
-                                                        <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="text-red-400 p-1 hover:text-red-600 transition" title="刪除"><i class="fas fa-times text-[10px]"></i></button>
+                                                <div class="flex items-start space-x-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm relative">
+                                                    <div class="flex flex-col space-y-1.5 w-full">
+                                                        <div class="flex space-x-1.5">
+                                                            <select onchange="udg(${idx}, ${i}, ${dIdx}, 'isLink', this.value); renderBlocksEditor()" class="border border-gray-300 rounded p-1 text-[10px] font-bold bg-white shadow-sm shrink-0 outline-none"><option value="false" ${!d.isLink ? 'selected' : ''}>文字</option><option value="true" ${d.isLink ? 'selected' : ''}>網址</option></select>
+                                                            ${d.isLink ? `<input type="text" value="${d.linkName||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'linkName', this.value)" placeholder="按鈕名" class="w-16 border border-gray-300 rounded p-1 text-xs font-bold outline-none bg-white shadow-inner shrink-0">` : ''}
+                                                        </div>
+                                                        <input type="text" value="${d.text||''}" oninput="udg(${idx}, ${i}, ${dIdx}, 'text', this.value)" placeholder="${d.isLink?'貼上網址 https://...':'輸入附加說明內容...'}" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white shadow-inner">
                                                     </div>
-                                                </div>                                            `).join('')}
-                                            <button onclick="addBadgeDetail(${idx}, ${i})" class="w-full mt-1.5 py-1 text-[10px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100">+ 新增明細列</button>
+                                                    <div class="flex flex-col items-center justify-between space-y-1 shrink-0 bg-white border border-gray-200 rounded p-0.5 shadow-sm h-full">
+                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-[#0369a1] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                        <div class="w-3 h-[1px] bg-gray-200"></div>
+                                                        <button onclick="moveBadgeDetail(${idx}, ${i}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-[#0369a1] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                        <div class="w-3 h-[1px] bg-gray-200"></div>
+                                                        <button onclick="delBadgeDetail(${idx}, ${i}, ${dIdx})" class="p-1 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                            <button onclick="addBadgeDetail(${idx}, ${i})" class="w-full mt-2 py-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded hover:bg-gray-100 transition shadow-sm">+ 新增一行明細</button>
                                         </div>
                                     </div>
                                 `).join('')}
-                                <button onclick="addBadgeItem(${idx})" class="w-full py-1.5 text-[11px] font-bold text-gray-600 bg-gray-100 border border-dashed border-gray-300 rounded hover:bg-gray-200 transition">+ 新增標籤區塊</button>
+                                <button onclick="addBadgeItem(${idx})" class="w-full py-2 text-[12px] font-bold text-[#0369a1] bg-[#f0f9ff] border border-dashed border-[#bae6fd] rounded-lg hover:bg-[#e0f2fe] transition shadow-sm">+ 新增一個大群組</button>
                             </div>
                         ` : b.type === 'alert' ? `
                             <div class="space-y-2">
@@ -1475,20 +1507,19 @@
                                         <div id="preview-alert-text-${idx}" class="whitespace-pre-wrap flex-1 leading-relaxed">${b.text || '提醒內容'}</div>
                                     </div>
                                 </div>
-
-								<div class="space-y-1.5 mt-1 bg-white border border-gray-200 p-2 rounded shadow-sm">
+                                <div class="space-y-1.5 mt-1 bg-white border border-gray-200 p-2 rounded shadow-sm">
                                     <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">背景色</span>${colorPaletteHTML(b.style, `ub(${idx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                     <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">文字顏色</span>${colorPaletteHTML(b.textColor||'#333333', `ub(${idx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
-									<div class="flex items-center pt-1.5 border-t border-gray-100">
+                                    <div class="flex items-center pt-1.5 border-t border-gray-100">
                                         <span class="text-[10px] font-bold text-gray-500 w-12 shrink-0">提示圖示</span>
                                         <input type="text" value="${b.icon||''}" oninput="ub(${idx}, 'icon', this.value); renderBlocksEditor()" placeholder="貼上Emoji" class="w-16 border border-gray-300 rounded p-1 text-xs text-center outline-none bg-white shadow-inner mr-2 shrink-0">
                                         <div class="flex space-x-1 overflow-x-auto hide-scrollbar py-0.5">
-                                            ${['💡', '🚨', '⚠️', '📌', '📢', '💬', '✈️', '🚇', '🍽️', '🛍️', '⭐', '🖋️', '📝', '🔖'].map(emo => 
+                                            ${['💡', '🚨', '⚠️', '📌', '📢', '💬', '✈️', '🚇', '🍽️', '🛍️'].map(emo => 
                                                 `<button onclick="ub(${idx}, 'icon', '${emo}'); renderBlocksEditor()" class="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-gray-200 border border-gray-200 rounded text-xs transition shrink-0 shadow-sm ${b.icon === emo ? 'ring-1 ring-gray-500 bg-gray-200 scale-110' : ''}">${emo}</button>`
                                             ).join('')}
                                         </div>
                                     </div>
-                                
+                                </div>
                                 <textarea oninput="ub(${idx}, 'text', this.value)" rows="5" placeholder="提醒內容" class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>
                             </div>
                         ` : b.type === 'grid' ? `
@@ -1503,10 +1534,10 @@
                                 <button onclick="addGridRow(${idx})" class="w-full mt-2 py-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded">+ 新增列</button>
                             </div>
 						` : b.type === 'split' ? `
-                            <div class="space-y-2">
-                                <span class="text-[11px] font-bold text-[#0369a1]"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
+                            <div class="space-y-4">
+                                <span class="text-[12px] font-bold text-[#059669] bg-[#d1fae5] px-2 py-1 rounded-md shadow-sm"><i class="fas fa-columns mr-1"></i>滑動式分流卡片設定</span>
                                 
-                                <div class="mb-3 p-2 rounded bg-white border border-dashed border-gray-300 shadow-sm overflow-hidden">
+                                <div class="mb-3 p-3 rounded-lg bg-white border border-dashed border-gray-300 shadow-sm overflow-hidden opacity-90">
                                     <span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase">樣式預覽 Preview (可向右滑動)</span>
                                     <div class="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 hide-scrollbar w-full pointer-events-auto">
                                         ${b.routes.map(r => {
@@ -1518,7 +1549,6 @@
                                                     let isOnlyUrl = /^https?:\/\/[^\s]+$/.test(textTrimmed);
                                                     if(isOnlyUrl || d.isLink) return '<span class="inline-block bg-white/60 text-gray-800 border border-black/10 px-1.5 py-0.5 rounded text-[9px] w-fit shadow-sm">🔗 導航按鈕</span>';
                                                     let txt = d.text.replace(/(https?:\/\/[^\s\)]+)/g, '🔗網址');
-                                                    // ★ 已移除預覽區的黑點點
                                                     return '<div class="w-full text-[9px] text-gray-600 break-words mb-0.5">' + txt + '</div>';
                                                 }).join('') + '</div>';
                                             }
@@ -1535,47 +1565,52 @@
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-2">
+                                <div class="grid grid-cols-1 gap-4">
                                     ${b.routes.map((r, rIdx) => `
-											<div class="p-2 border border-gray-200 rounded bg-white shadow-sm space-y-1.5 relative pb-6 mt-4">
-                                            <div class="absolute -top-3 right-2 flex space-x-1 z-10">
-                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, -1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="往前排"><i class="fas fa-arrow-up"></i></button>
-                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, 1)" class="text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 px-2 py-0.5 rounded shadow-sm text-[10px] font-bold transition flex items-center" title="往後排"><i class="fas fa-arrow-down"></i></button>
-                                                ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow text-[10px] font-bold transition flex items-center" title="刪除此卡片"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                        <div class="p-3 border border-gray-300 rounded-lg bg-gray-50 shadow-sm space-y-2 relative mt-4 border-l-4 border-l-[#059669]">
+                                            <div class="font-bold text-xs text-[#059669] mb-3 border-b border-gray-200 pb-1.5 flex justify-between items-center">
+                                                <span class="bg-[#d1fae5] px-2 py-0.5 rounded shadow-sm">🗂️ 滑動卡片 ${rIdx + 1} (獨立的一張卡)</span>
                                             </div>
-                                            <div class="font-bold text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-2">滑動卡片 ${rIdx + 1}</div>
-                                            <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none">
-                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed">${r.text}</textarea>
+                                            <div class="absolute -top-3 right-2 flex space-x-1 z-10 bg-white border border-gray-300 p-0.5 rounded shadow-sm">
+                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, -1)" class="text-gray-600 hover:bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="卡片往前排"><i class="fas fa-arrow-up"></i></button>
+                                                <div class="w-[1px] bg-gray-200"></div>
+                                                <button onclick="moveSplitRoute(${idx}, ${rIdx}, 1)" class="text-gray-600 hover:bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="卡片往後排"><i class="fas fa-arrow-down"></i></button>
+                                                <div class="w-[1px] bg-gray-200"></div>
+                                                ${b.routes.length > 1 ? `<button onclick="delSplitRoute(${idx}, ${rIdx})" class="text-red-500 hover:bg-red-50 px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center" title="刪除此卡片"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                            </div>
                                             
-                                            <div class="space-y-1 mt-2 bg-gray-50 p-1.5 rounded border border-gray-200">
-                                                <div class="text-[10px] font-bold text-gray-500 mb-1">📋 明細列 (自動偵測網址)</div>
+                                            <input type="text" value="${r.badge}" oninput="usplit(${idx}, ${rIdx}, 'badge', this.value); updateInfoModalUI()" placeholder="群組(例:A組)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none shadow-inner">
+                                            <input type="text" value="${r.title}" oninput="usplit(${idx}, ${rIdx}, 'title', this.value); updateInfoModalUI()" placeholder="短標題" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none shadow-inner">
+                                            <textarea oninput="usplit(${idx}, ${rIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="主要說明(選填)" class="w-full border border-gray-300 rounded p-1.5 text-xs font-bold bg-white outline-none leading-relaxed shadow-inner">${r.text}</textarea>
+                                            
+                                            <div class="space-y-2 mt-4 bg-white border border-gray-200 p-2.5 rounded-lg shadow-inner">
+                                                <div class="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">📋 屬於此卡片的明細列 (自動偵測網址)</div>
                                                 ${(r.details||[]).map((d, dIdx) => `
-                                                    <div class="flex items-start space-x-1 mb-1.5 bg-white p-1 rounded border border-gray-200">
-														<textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="內容或貼上網址..." class="flex-1 min-w-0 border-transparent rounded p-1 text-xs font-bold outline-none bg-white leading-relaxed">${d.text||''}</textarea>
-                                                        <div class="flex flex-col items-center space-y-1 shrink-0 bg-gray-50 border border-gray-200 rounded py-1 px-0.5 mt-0.5">
-                                                            <div class="flex space-x-1">
-                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-gray-800 transition"><i class="fas fa-arrow-up text-[10px]"></i></button>
-                                                                <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-gray-800 transition"><i class="fas fa-arrow-down text-[10px]"></i></button>
-                                                            </div>
-                                                            <div class="w-4 h-[1px] bg-gray-300"></div>
-                                                            <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="text-red-400 p-1 hover:text-red-600 transition"><i class="fas fa-times text-[10px]"></i></button>
+                                                    <div class="flex items-start space-x-1.5 bg-gray-50 p-1.5 rounded border border-gray-200 shadow-sm relative">
+                                                        <textarea oninput="udgSplit(${idx}, ${rIdx}, ${dIdx}, 'text', this.value); updateInfoModalUI()" rows="2" placeholder="輸入文字或直接貼上網址..." class="flex-1 min-w-0 border border-gray-300 rounded p-1.5 text-xs font-bold outline-none bg-white leading-relaxed shadow-inner">${d.text||''}</textarea>
+                                                        <div class="flex flex-col items-center justify-between space-y-1 shrink-0 bg-white border border-gray-200 rounded p-0.5 shadow-sm h-full">
+                                                            <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, -1)" class="p-1 text-gray-400 hover:text-[#059669] transition" title="明細上移"><i class="fas fa-arrow-up text-[10px]"></i></button>
+                                                            <div class="w-3 h-[1px] bg-gray-200"></div>
+                                                            <button onclick="moveSplitDetail(${idx}, ${rIdx}, ${dIdx}, 1)" class="p-1 text-gray-400 hover:text-[#059669] transition" title="明細下移"><i class="fas fa-arrow-down text-[10px]"></i></button>
+                                                            <div class="w-3 h-[1px] bg-gray-200"></div>
+                                                            <button onclick="delSplitDetail(${idx}, ${rIdx}, ${dIdx})" class="p-1 text-red-400 hover:text-red-600 transition" title="刪除明細"><i class="fas fa-times text-[10px]"></i></button>
                                                         </div>
-                                                    </div>                                                `).join('')}
-                                                <button onclick="addSplitDetail(${idx}, ${rIdx})" class="w-full mt-1 py-1.5 text-[10px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition">+ 新增明細列</button>
+                                                    </div>
+                                                `).join('')}
+                                                <button onclick="addSplitDetail(${idx}, ${rIdx})" class="w-full mt-2 py-1.5 text-[11px] font-bold text-gray-500 bg-white border border-dashed border-gray-300 rounded hover:bg-gray-100 transition shadow-sm">+ 新增一行明細</button>
                                             </div>
 
-                                            <div class="space-y-1 mt-2 border-t border-gray-100 pt-1.5">
-                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
-                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">標籤</span>${colorPaletteHTML(r.textColor, `usplit(${idx}, ${rIdx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
-                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-400 w-8 shrink-0">內文</span>${colorPaletteHTML(r.titleColor, `usplit(${idx}, ${rIdx}, 'titleColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                            <div class="space-y-1.5 mt-3 bg-white border border-gray-200 p-2 rounded-lg shadow-sm">
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">底色</span>${colorPaletteHTML(r.style, `usplit(${idx}, ${rIdx}, 'style', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">標籤</span>${colorPaletteHTML(r.textColor, `usplit(${idx}, ${rIdx}, 'textColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
+                                                <div class="flex items-center"><span class="text-[10px] font-bold text-gray-500 w-10 shrink-0">內文</span>${colorPaletteHTML(r.titleColor, `usplit(${idx}, ${rIdx}, 'titleColor', '$$VAL$$'); renderBlocksEditor()`)}</div>
                                             </div>
                                         </div>
                                     `).join('')}
                                 </div>
-                                <button onclick="addSplitRoute(${idx})" class="w-full py-2 text-[11px] font-bold text-[#0369a1] bg-[#e0f2fe] border border-[#bae6fd] rounded hover:bg-[#bae6fd] transition mt-2">+ 新增一張滑動卡片</button>
+                                <button onclick="addSplitRoute(${idx})" class="w-full py-2 text-[12px] font-bold text-[#059669] bg-[#d1fae5] border border-dashed border-[#a7f3d0] rounded-lg hover:bg-[#a7f3d0] transition shadow-sm mt-2">+ 新增一張滑動卡片</button>
                             </div>
-                        ` : `<textarea oninput="ub(${idx}, 'text', this.value)" rows="3" placeholder="輸入文字..." class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none">${b.text}</textarea>`}
+                        ` : `<textarea oninput="ub(${idx}, 'text', this.value)" rows="3" placeholder="輸入文字..." class="w-full border border-gray-300 rounded p-1.5 text-sm font-bold outline-none shadow-inner">${b.text}</textarea>`}
                     </div>
                 </div>`).join('');
         }
@@ -1792,41 +1827,75 @@
             }
         }
 
-	window.fetchExchangeRate = async function(isManual = false) {
+		window.changeCurrency = function(val) {
+            currentTargetCurrency = val;
+            localStorage.setItem('korea_target_currency', val);
+            updateCurrencyUI();
+            fetchExchangeRate(true);
+        };
+
+        window.updateCurrencyUI = function() {
+            const sym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
+            const expSymbolEl = document.getElementById('exp-foreign-symbol');
+            if(expSymbolEl) expSymbolEl.innerText = sym;
+            updateCalcDisplay();
+            if(typeof renderExpenses === 'function') renderExpenses();
+        };
+
+		window.fetchExchangeRate = async function(isManual = false) {
             try {
                 if (isManual) document.getElementById('exchange-update-time').innerText = "更新中...";
-                const res = await fetch('https://open.er-api.com/v6/latest/TWD'); const data = await res.json();
-                if (data && data.rates && data.rates.KRW) {
-                    document.getElementById('base-rate').value = data.rates.KRW.toFixed(2);
-                    // ★ 新增這行：自動把即時匯率同步到記帳表單的格子裡
-                    if(document.getElementById('exp-rate')) document.getElementById('exp-rate').value = data.rates.KRW.toFixed(2);
-                    updateCalcDisplay(); calcExpTwd(); 
-                    const n = new Date(); document.getElementById('exchange-update-time').innerText = `更新於 ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
-                    if (isManual) showMsg("✅ 匯率更新成功！\n\n1 TWD = " + data.rates.KRW.toFixed(2) + " KRW");
+                
+                let rate = null;
+                const target = currentTargetCurrency.toUpperCase();
+                
+                try {
+                    // 引擎 A：主要匯率庫
+                    const res1 = await fetch('https://open.er-api.com/v6/latest/TWD');
+                    const data1 = await res1.json();
+                    if (data1 && data1.rates && data1.rates[target]) rate = data1.rates[target];
+                } catch(e1) {
+                    console.log("引擎A受阻，啟動引擎B備援...");
+                    // 引擎 B：備用匯率庫 (如果 A 掛了或被擋，自動切換)
+                    const res2 = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
+                    const data2 = await res2.json();
+                    if (data2 && data2.rates && data2.rates[target]) rate = data2.rates[target];
                 }
-            } catch (err) { document.getElementById('exchange-update-time').innerText = "更新失敗"; if (isManual) showMsg("獲取匯率失敗，請確認網路狀態。"); }
+
+                if (rate !== null) {
+                    // 智慧精準度：小幣值顯示2位小數，大幣值(如美金)顯示4位小數
+                    const rateStr = rate < 1 ? rate.toFixed(4) : rate.toFixed(2);
+                    
+                    document.getElementById('base-rate').value = rateStr;
+                    if(document.getElementById('exp-rate')) document.getElementById('exp-rate').value = rateStr;
+                    updateCalcDisplay(); calcExpTwd(); 
+                    
+                    const n = new Date(); document.getElementById('exchange-update-time').innerText = `更新於 ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+                    if (isManual) showMsg("✅ 匯率更新成功！\n\n1 TWD = " + rateStr + " " + currentTargetCurrency);
+                } else {
+                    throw new Error("無法取得匯率");
+                }
+            } catch (err) { 
+                console.error("匯率更新失敗:", err);
+                document.getElementById('exchange-update-time').innerText = "更新失敗"; 
+                if (isManual) {
+                    // 如果判斷是本機端開啟，給予專屬提示
+                    if (window.location.protocol === 'file:') {
+                        showMsg("⚠️ 獲取匯率失敗！\n\n因為您現在是用電腦的資料夾 (file:///) 開啟，瀏覽器安全機制會阻擋外部連線。\n\n💡 解決方式：請把檔案上傳到 GitHub，並使用您的「專屬線上網址」開啟，就能正常抓取囉！");
+                    } else {
+                        showMsg("獲取匯率失敗，請確認您的網路連線狀態。"); 
+                    }
+                }
+            }
         }
 		
-        window.pressKey = function(key) { currentCalc = currentCalc === "0" || currentCalc === "" ? key : currentCalc + key; updateCalcDisplay(); }
-		window.clearCalc = function() { currentCalc = ""; updateCalcDisplay(); }
-        window.backspaceCalc = function() { if(currentCalc.length > 0) { currentCalc = currentCalc.slice(0, -1); updateCalcDisplay(); } }
-        window.evalCalc = function() { try { currentCalc = String(eval(currentCalc.replace('×','*').replace('÷','/')) || ""); updateCalcDisplay(); } catch(e) { currentCalc = "Error"; updateCalcDisplay(); } }
         window.updateCalcDisplay = function() {
-            const r = parseFloat(document.getElementById('base-rate').value) || 41; document.getElementById('calc-display').innerText = currentCalc ? `₩ ${currentCalc}` : "₩ 0";
+            const sym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
+            const r = parseFloat(document.getElementById('base-rate').value) || 41; 
+            document.getElementById('calc-display').innerText = currentCalc ? `${sym} ${currentCalc}` : `${sym} 0`;
             const v = parseFloat(currentCalc); document.getElementById('calc-result-twd').innerText = !isNaN(v) ? `≈ NT$ ${Math.round(v/r).toLocaleString()}` : `≈ NT$ 0`;
         }
-        window.copyCalcToExpense = function() { const v = parseFloat(currentCalc); if (!isNaN(v)) { document.getElementById('exp-krw').value = v; calcExpTwd(); } }
-window.calcExpTwd = function() { 
-            const krw = parseFloat(document.getElementById('exp-krw').value);
-            const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
-            if (!isNaN(krw)) document.getElementById('exp-twd').value = Math.round(krw / r); else document.getElementById('exp-twd').value = '';
-        }
-        window.calcExpKrw = function() { 
-            const twd = parseFloat(document.getElementById('exp-twd').value);
-            const r = parseFloat(document.getElementById('exp-rate').value) || parseFloat(document.getElementById('base-rate').value) || 41; 
-            if (!isNaN(twd)) document.getElementById('exp-krw').value = Math.round(twd * r); else document.getElementById('exp-krw').value = '';
-        }
-
+		
         window.previewExpPhoto = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -2028,11 +2097,12 @@ window.calcExpTwd = function() {
             };
             
             list.innerHTML = expenses.map(ex => {
+				const curSym = currencySymbols[currentTargetCurrency] || currentTargetCurrency;
                 const cat = catMap[ex.category] || catMap.other;
                 let splitText = '';
                 if (ex.splitMembers && ex.splitMembers.length > 0) {
                     let pKrw = Math.round(ex.krw / ex.splitMembers.length); let pTwd = Math.round(ex.twd / ex.splitMembers.length);
-                    splitText = `<span class="bg-[#f0f9ff] px-1.5 py-0.5 rounded border border-[#bae6fd] whitespace-normal break-words leading-relaxed w-fit"><i class="fas fa-users text-[#0284c7] mr-1"></i>分攤: ${ex.splitMembers.join(', ')} (每人₩${pKrw.toLocaleString()} / NT$${pTwd.toLocaleString()})</span>`;
+                    splitText = `<span class="bg-[#f0f9ff] px-1.5 py-0.5 rounded border border-[#bae6fd] whitespace-normal break-words leading-relaxed w-fit"><i class="fas fa-users text-[#0284c7] mr-1"></i>分攤: ${ex.splitMembers.join(', ')} (每人${curSym}${pKrw.toLocaleString()} / NT$${pTwd.toLocaleString()})</span>`;
                 }
                 return `
                 <div class="p-3 rounded-lg border border-gray-200 shadow-sm flex flex-col mb-3 transition-colors duration-300 bg-white">
@@ -2046,7 +2116,7 @@ window.calcExpTwd = function() {
                             </div>
                         </div>
                         <div class="text-right shrink-0">
-                            <p class="text-sm font-bold text-gray-900">₩${ex.krw.toLocaleString()}</p>
+                            <p class="text-sm font-bold text-gray-900">${curSym}${ex.krw.toLocaleString()}</p>
                             <p class="text-xs text-muji-accent font-bold">NT$${ex.twd.toLocaleString()}</p>
                         </div>
                     </div>
@@ -2712,7 +2782,9 @@ window.exportSettlementCSV = function() {
             renderExpColorPicker();
             renderExpenses(); 
             fetchWeather();
-            fetchExchangeRate(false); 
+            fetchExchangeRate(false);
+			if(document.getElementById('target-currency')) document.getElementById('target-currency').value = currentTargetCurrency;
+            updateCurrencyUI();
             if(window.setCurrentTimeToInput) window.setCurrentTimeToInput();
         });
 		

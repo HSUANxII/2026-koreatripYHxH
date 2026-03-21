@@ -1634,7 +1634,7 @@
                                 <div class="mb-3 p-3 rounded-lg bg-white border border-dashed border-gray-300 shadow-sm overflow-hidden opacity-90">
                                     <span class="text-[10px] font-bold text-gray-400 block mb-2 uppercase">樣式預覽 Preview (可向右滑動)</span>
                                     <div class="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 hide-scrollbar w-full pointer-events-auto">
-                                        ${b.routes.map(r => {
+                                        ${b.routes.map((r, rIdx) => {
                                             let dHtml = '';
 											if(r.details && r.details.length > 0) {
                                                 dHtml = '<div class="mt-1.5 flex flex-wrap gap-1 border-t border-black/5 pt-1.5">' + r.details.map(d => {

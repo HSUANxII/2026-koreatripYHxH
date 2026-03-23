@@ -3051,37 +3051,6 @@ window.closeSettlementModal = function() {
                 console.log("雲端下載失敗:", error);
             }
         };
-
-		document.addEventListener('DOMContentLoaded', () => {
-            // 瞬間載入離線資料與介面
-            initTitlesUI();
-            showTab('plan'); 
-            renderCards('plan'); 
-            renderCards('flight'); 
-            renderCards('info'); 
-            renderCards('lists'); 
-            renderChecklist(); 
-            renderPayerRadios(); 
-            renderSplitMembersCheckboxes(); 
-            renderExpColorPicker();
-            renderExpenses(); 
-            fetchWeather();
-            fetchExchangeRate(false);
-			if(document.getElementById('target-currency')) document.getElementById('target-currency').value = currentTargetCurrency;
-            updateCurrencyUI();
-            if(window.setCurrentTimeToInput) window.setCurrentTimeToInput();
-
-            // ★ 終極雲端洗腦指令：等雲端連線成功(3秒後)，強制把最新程式碼覆寫上雲端！ ★
-            setTimeout(() => {
-                if (!localStorage.getItem('force_update_day678_final')) {
-                    planCardsData = defaultPlanCards;
-                    if(typeof saveCardsToStorage === 'function') saveCardsToStorage('plan');
-                    if(typeof renderCards === 'function') renderCards('plan');
-                    localStorage.setItem('force_update_day678_final', 'done');
-                    if(typeof showMsg === 'function') showMsg('✅ 雲端行程已成功強制更新為最新版本！');
-                }
-            }, 3000);
-        });
 		
 		// ==========================================
         // ★ 視覺化設定中心邏輯 (終極連動版) ★
@@ -3188,10 +3157,10 @@ window.closeSettlementModal = function() {
             }
         };
 
-        window.toggleAppLock = function() {
+		window.toggleAppLock = function() {
             if (window.isAppLocked) {
                 // 要求密碼解鎖
-                const pwd = prompt('🔒 目前為上鎖狀態\，請輸入解鎖密碼：');
+                const pwd = prompt('🔒 目前為上鎖狀態\n請輸入解鎖密碼：');
                 if (pwd === window.APP_PASSWORD) {
                     window.isAppLocked = false;
                     if(typeof saveGlobalState === 'function') saveGlobalState({ isLocked: false });
@@ -3204,7 +3173,7 @@ window.closeSettlementModal = function() {
             } else {
                 // 上鎖不用密碼
                 if(typeof showMsg === 'function') {
-                    showMsg('確定要將核心行程上鎖嗎？\上鎖後，「行程、航班、資訊」分頁的編輯功能將會隱藏，但「記帳」與「備忘錄」仍保持開放供大家使用。', true, () => {
+                    showMsg('確定要將核心行程上鎖嗎？\n上鎖後，「行程、航班、資訊」分頁的編輯功能將會隱藏，但「記帳」與「備忘錄」仍保持開放供大家使用。', true, () => {
                         window.isAppLocked = true;
                         if(typeof saveGlobalState === 'function') saveGlobalState({ isLocked: true });
                         updateLockUI();
@@ -3212,7 +3181,7 @@ window.closeSettlementModal = function() {
                 }
             }
         };
-
+		
 		document.addEventListener('DOMContentLoaded', () => {
             // 瞬間載入離線資料與介面
             initTitlesUI();
@@ -3231,19 +3200,10 @@ window.closeSettlementModal = function() {
             if(document.getElementById('target-currency')) document.getElementById('target-currency').value = currentTargetCurrency;
             updateCurrencyUI();
             if(window.setCurrentTimeToInput) window.setCurrentTimeToInput();
-
-		// ★ 終極雲端洗腦指令：等雲端連線成功(3秒後)，強制把最新程式碼覆寫上雲端！ ★
-            setTimeout(() => {
-                if (!localStorage.getItem('force_update_return_v4')) {
-                    planCardsData = defaultPlanCards;
-                    if(typeof saveCardsToStorage === 'function') saveCardsToStorage('plan');
-                    if(typeof renderCards === 'function') renderCards('plan');
-                    localStorage.setItem('force_update_return_v3', 'done');
-                    if(typeof showMsg === 'function') showMsg('✅ 最新行程 (含每日回程與Day5分流) 已成功強制更新！');
-                }
-            }, 3000);
-		});
-		
+            
+            // ★ 定時炸彈已徹底拆除！現在 APP 會完全記住你手動修改的內容，絕對不會再洗掉了 ★
+        });
+				
 		// ==========================================
         // ★ 終極安全版：視覺化設定中心外掛 (修復新增與雲端同步) ★
         // ==========================================

@@ -49,6 +49,56 @@
 	
     </script>
 
+    <script>
+        // 盡早宣告初次雲端同步旗標，避免啟動期間本地舊資料被推回雲端
+        window._initialCloudRefreshInProgress = true;
+
+        // 簡易同步中指示器（暫時顯示於右上角）
+        window.showCloudSyncIndicator = function(show) {
+            try {
+                let el = document.getElementById('cloud-sync-indicator');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'cloud-sync-indicator';
+                    el.style.position = 'fixed';
+                    el.style.right = '12px';
+                    el.style.top = '12px';
+                    el.style.zIndex = 99999;
+                    el.style.padding = '6px 10px';
+                    el.style.borderRadius = '8px';
+                    el.style.background = 'rgba(2,6,23,0.8)';
+                    el.style.color = '#fff';
+                    el.style.fontSize = '12px';
+                    el.style.fontWeight = '600';
+                    el.style.backdropFilter = 'blur(4px)';
+                    el.innerText = '同步中…';
+                    document.body && document.body.appendChild(el);
+                }
+                el.style.display = show ? 'block' : 'none';
+            } catch (e) { /* ignore */ }
+        };
+
+        // Debug helper to inspect sync-related state
+        window.debugSyncState = function() {
+            return {
+                initialCloudRefreshInProgress: !!window._initialCloudRefreshInProgress,
+                pendingGlobalState: window._pendingGlobalState || {},
+                globalStateTimer: !!window._globalStateSaveTimer,
+                planCardsLastModified,
+                flightCardsLastModified,
+                infoCardsLastModified,
+                listsCardsLastModified,
+                memoLastModified,
+                memoListLastModified,
+                travelMembersLastModified,
+                titlesLastModified
+            };
+        };
+
+        // 頁面載入時預設顯示同步中，fetch 結束會隱藏
+        window.showCloudSyncIndicator(true);
+    </script>
+
     <style>
     /* 強制所有分類選單寬度 */
         #exp-category.wallet-category-select,
@@ -271,17 +321,21 @@
 
         .trip-destination-menu-btn {
             width: 100%;
-            border: 1px solid #d1d5db;
+            border: 1px solid #2563eb;
             border-radius: 0.5rem;
             padding: 0.5rem;
-            background: #ffffff;
+            background: #dbeafe;
             font-size: 12px;
             font-weight: 700;
-            color: #111827;
+            color: #1e3a8a;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
+        }
+
+        .trip-destination-menu-btn:hover {
+            background: #bfdbfe;
         }
 
         .trip-destination-item {
@@ -730,16 +784,16 @@
                     </button>
                     <div id="settings-section-user-identity" class="hidden px-3 pb-3 space-y-3 border-t border-gray-200">
                         <div class="text-[13px] font-black text-gray-700">設定您的用戶名稱，並確認您在各分區的管理員身份。</div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-3">
-                            <div class="text-[11px] font-bold text-gray-600 mb-2">當前用戶名稱</div>
+                        <div class="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-3">
+                            <div class="text-[11px] font-bold text-[#1e3a8a] mb-2">當前用戶名稱</div>
                             <div class="flex items-center gap-2">
-                                <input id="current-user-name-input" type="text" maxlength="20" placeholder="請輸入您的名稱" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm font-bold text-gray-900 outline-none focus:border-[#0369a1] bg-white" oninput="updateCurrentUserName(this.value)">
-                                <button onclick="saveCurrentUserName()" class="px-3 py-2 text-sm font-bold rounded bg-[#0369a1] text-white hover:bg-[#0284c7] transition">儲存</button>
+                                <input id="current-user-name-input" type="text" maxlength="20" placeholder="請輸入您的名稱" class="flex-1 border border-[#93c5fd] rounded px-3 py-2 text-sm font-bold text-[#0f172a] outline-none focus:border-[#2563eb] bg-white" oninput="updateCurrentUserName(this.value)">
+                                <button onclick="saveCurrentUserName()" class="px-3 py-2 text-sm font-bold rounded bg-[#2563eb] text-white hover:bg-[#1d4ed8] transition">儲存</button>
                             </div>
-                            <div id="current-user-display" class="mt-2 text-sm font-bold text-gray-700"></div>
+                            <div id="current-user-display" class="mt-2 text-sm font-bold text-[#0f172a]"></div>
                         </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-3">
-                            <div class="text-[11px] font-bold text-gray-600 mb-2">分區管理員狀態</div>
+                        <div class="bg-[#eff6ff] border border-[#bfdbfe] rounded-lg p-3">
+                            <div class="text-[11px] font-bold text-[#1e3a8a] mb-2">分區管理員狀態</div>
                             <div id="admin-status-list" class="space-y-2"></div>
                         </div>
                     </div>
@@ -753,9 +807,9 @@
                     <div id="settings-section-trip-files" class="hidden px-3 pb-3 space-y-2.5 border-t border-gray-200">
                         <select id="settings-trip-select" class="hidden"></select>
                         <div class="relative">
-                            <button type="button" onclick="toggleTripProfileMenu()" class="trip-destination-menu-btn bg-[#e0f2fe] border-[#7dd3fc] text-[#0c4a6e]">
+                            <button type="button" onclick="toggleTripProfileMenu()" class="trip-destination-menu-btn bg-[#bfdbfe] border-[#3b82f6] text-[#1e3a8a] hover:bg-[#93c5fd]">
                                 <span id="settings-trip-select-display" class="truncate text-left">選擇旅程</span>
-                                <i class="fas fa-chevron-down text-[11px] text-[#0c4a6e]/70"></i>
+                                <i class="fas fa-chevron-down text-[11px] text-[#1e3a8a]/80"></i>
                             </button>
                             <div id="settings-trip-select-menu" class="hidden mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg p-1.5 max-h-56 overflow-y-auto"></div>
                         </div>
@@ -822,12 +876,18 @@
                 <button type="button" onclick="closePendingChangesModal()" class="text-gray-500 hover:text-gray-800 p-1"><i class="fas fa-times"></i></button>
             </div>
 <div class="px-4 py-4 max-h-[70vh] overflow-y-auto space-y-5">
+                <div id="pending-changes-filter-bar" class="flex flex-wrap items-center justify-between gap-2 mb-3"></div>
                 <div>
                     <div class="text-sm font-black text-gray-900 mb-2">待審核變更</div>
                     <div id="pending-changes-list" class="space-y-3"></div>
                 </div>
                 <div>
-                    <div class="text-sm font-black text-gray-900 mb-2">已處理變更</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-black text-gray-900">已處理變更</div>
+                        <button type="button" onclick="window.toggleProcessedChangesVisibility()" class="text-[12px] font-bold text-[#0369a1] hover:text-[#024e74]">
+                            <span id="processed-changes-toggle-text">顯示/隱藏</span>
+                        </button>
+                    </div>
                     <div id="processed-changes-list" class="space-y-3"></div>
                 </div>
             </div>
@@ -856,9 +916,18 @@
                 <input id="username-prompt-input" type="text" maxlength="24" placeholder="您的名稱" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 outline-none focus:border-[#0369a1] bg-white">
                 <div class="flex items-center justify-end gap-2">
                     <button onclick="closeUsernamePromptModal()" class="px-3 py-2 text-sm font-bold rounded-lg bg-gray-100 text-gray-700">稍後</button>
-                    <button onclick="saveUsernamePrompt()" class="px-3 py-2 text-sm font-bold rounded-lg bg-[#0369a1] text-white">儲存</button>
+                    <button onclick="saveUsernamePrompt()" class="px-3 py-2 text-sm font-bold rounded-lg bg-[#2563eb] text-white hover:bg-[#1d4ed8]">儲存</button>
                 </div>
             </div>
+        </div>
+    </div>
+    <div id="expense-detail-modal" class="fixed inset-0 bg-black/60 z-[997] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this) closeExpenseDetailModal()">
+        <div class="bg-white w-full max-w-lg rounded-2xl border border-gray-200 shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="px-4 py-3 flex items-center justify-between bg-gray-50 border-b border-gray-200">
+                <div class="text-sm font-black text-gray-900">消費明細</div>
+                <button type="button" onclick="closeExpenseDetailModal()" class="text-gray-500 hover:text-gray-800 p-1"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="expense-detail-content" class="px-4 py-4 max-h-[70vh] overflow-y-auto text-sm text-gray-800 space-y-3"></div>
         </div>
     </div>
 
@@ -1260,7 +1329,7 @@
                     <h3 class="text-base md:text-lg font-bold text-gray-900 flex items-center gap-1.5"><i class="fas fa-chart-pie text-[#0369a1] text-sm"></i>消費明細&結算</h3>
                     <div class="flex items-center gap-2 shrink-0">
                         <button id="btn-refresh-settlement" onclick="refreshSettlementData()" class="text-xs bg-[#fef3c7] text-[#92400e] border border-[#fcd34d] px-3 py-1.5 rounded font-bold hover:bg-[#fef08a] shadow-sm flex items-center shrink-0 transition" title="手動更新結算明細">
-                            <i class="fas fa-sync-alt mr-1"></i>手動更新
+                            <i class="fas fa-sync-alt mr-1"></i>更新
                         </button>
                         <button onclick="exportSettlementCSV()" class="text-xs bg-[#ecfdf5] text-[#15803d] border border-[#bbf7d0] px-3 py-1.5 rounded font-bold hover:bg-[#dcfce7] shadow-sm flex items-center shrink-0 transition">
                             <i class="fas fa-file-excel mr-1"></i>匯出結算
@@ -1687,6 +1756,7 @@
         let titles = {};
         let customSectionTitles = {};
         let travelMembersLastModified = 0;
+        let memoLastModified = 0;
         let memoListLastModified = 0;
         let titlesLastModified = 0;
         const WEATHER_WIDGET_CARD_ID = '__weather_widget__';
@@ -1747,7 +1817,11 @@
                 return { ...card, id };
             });
             if (changed) {
-                try { localStorage.setItem('korea_lists_v1', JSON.stringify(listsCardsData)); } catch (_) {}
+                listsCardsLastModified = Date.now();
+                persistCardStorage('korea_lists_v1', listsCardsData, listsCardsLastModified);
+                if (currentUser) {
+                    window.queueGlobalStateUpdate({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified });
+                }
             }
         };
 
@@ -2884,16 +2958,17 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         };
 
         window.persistAllCurrentStateToLocal = function() {
-            localStorage.setItem('korea_plan_v6', JSON.stringify(planCardsData || []));
-            localStorage.setItem('korea_flight_v4', JSON.stringify(flightCardsData || []));
-            localStorage.setItem('korea_info_v8', JSON.stringify(infoCardsData || []));
-            localStorage.setItem('korea_lists_v1', JSON.stringify(listsCardsData || []));
+            persistCardStorage('korea_plan_v6', planCardsData || [], planCardsLastModified);
+            persistCardStorage('korea_flight_v4', flightCardsData || [], flightCardsLastModified);
+            persistCardStorage('korea_info_v8', infoCardsData || [], infoCardsLastModified);
+            persistCardStorage('korea_lists_v1', listsCardsData || [], listsCardsLastModified);
             localStorage.setItem('korea_weather_locs_v3', JSON.stringify(weatherLocs || []));
             localStorage.setItem('korea_expenses_v3', JSON.stringify(expenses || []));
-            localStorage.setItem('korea_travel_members_v1', JSON.stringify(travelMembers || []));
-            localStorage.setItem('korea_memo_2026_v3', memo || '');
+            persistSyncStorage('korea_travel_members_v1', travelMembers || [], travelMembersLastModified);
+            try { localStorage.setItem('korea_memo_2026_v3', memo || ''); } catch (_) {}
+            persistSyncStorage('korea_memo_v1', memo || '', memoLastModified);
             localStorage.setItem('korea_chk_2026_v7', JSON.stringify(checklist || []));
-            localStorage.setItem('korea_titles_v2', JSON.stringify(titles || {}));
+            persistSyncStorage('korea_titles_v2', titles || {}, titlesLastModified);
             localStorage.setItem('korea_custom_titles_v1', JSON.stringify(customSectionTitles || {}));
             localStorage.setItem('korea_weather_widget_placement_v1', JSON.stringify(weatherWidgetPlacement || { sectionTitleId: '', anchorCardId: '', position: 'after' }));
             localStorage.setItem('korea_lists_checklist_placement_v1', JSON.stringify(listsChecklistPlacement || { sectionTitleId: '', anchorCardId: '', position: 'after' }));
@@ -2950,6 +3025,10 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         window.saveCurrentTripProfileSnapshot = function() {
             const idx = tripProfiles.findIndex(p => p && p.id === activeTripId);
             if (idx < 0) return;
+            if (!memoLastModified && memo && memo.trim() && memo.trim() !== String(defaultMemo || '').trim()) {
+                memoLastModified = Date.now();
+                persistSyncStorage('korea_memo_v1', memo, memoLastModified);
+            }
             tripProfiles[idx].name = topNavSettings.tripName;
             tripProfiles[idx].navSettings = window.deepCloneJSON(topNavSettings, defaultTopNavSettings);
             tripProfiles[idx].snapshot = window.getCurrentTripSnapshot();
@@ -4670,6 +4749,14 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                 lastModified: Number(timestamp) || Date.now()
             };
             try {
+                const existing = safeParseJSON(localStorage.getItem(key), null);
+                const existingTS = existing && typeof existing === 'object' ? Number(existing.lastModified || 0) : 0;
+                if (payload.lastModified < existingTS) {
+                    console.warn('persistCardStorage skip older write for', key, payload.lastModified, '<', existingTS);
+                    console.debug({op: 'persistCardStorage.skip', key, payloadLastModified: payload.lastModified, existingTS});
+                    return;
+                }
+                console.debug({op: 'persistCardStorage.write', key, payloadLastModified: payload.lastModified});
                 localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
                 console.error('persistCardStorage failed for', key, e);
@@ -4678,6 +4765,24 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
 
         function getCloudTimestamp(data, field) {
             return Number((data && data[field]) || 0);
+        }
+
+        function isEmptySyncValue(value) {
+            if (value === undefined || value === null) return true;
+            if (typeof value === 'string') return value.trim().length === 0;
+            if (Array.isArray(value)) return value.length === 0;
+            if (typeof value === 'object') return Object.keys(value).length === 0;
+            return false;
+        }
+
+        function shouldReplaceLocalWithCloud(localTS, cloudTS, localValue, cloudValue) {
+            if (cloudTS > localTS) return true;
+            if (cloudTS === localTS && isEmptySyncValue(localValue) && !isEmptySyncValue(cloudValue)) return true;
+            return false;
+        }
+
+        function shouldPromoteLocalToCloud(localTS, cloudTS, localValue) {
+            return localTS > cloudTS && !isEmptySyncValue(localValue);
         }
 
         function loadSyncStorage(key, defaultData) {
@@ -4700,11 +4805,129 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                 lastModified: Number(timestamp) || Date.now()
             };
             try {
+                const existing = safeParseJSON(localStorage.getItem(key), null);
+                const existingTS = existing && typeof existing === 'object' ? Number(existing.lastModified || 0) : 0;
+                if (payload.lastModified < existingTS) {
+                    console.warn('persistSyncStorage skip older write for', key, payload.lastModified, '<', existingTS);
+                    console.debug({op: 'persistSyncStorage.skip', key, payloadLastModified: payload.lastModified, existingTS});
+                    return;
+                }
+                console.debug({op: 'persistSyncStorage.write', key, payloadLastModified: payload.lastModified});
                 localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
                 console.error('persistSyncStorage failed for', key, e);
             }
         }
+
+        // 批次/防抖包裝：合併多個短時間內的雲端更新，減少頻繁寫入
+        window._pendingGlobalState = {};
+        window._globalStateSaveTimer = null;
+        window._initialCloudRefreshInProgress = false;
+
+        window.flushPendingGlobalState = function() {
+            if (window._initialCloudRefreshInProgress) {
+                if (window._globalStateSaveTimer) return;
+                window._globalStateSaveTimer = setTimeout(window.flushPendingGlobalState, 200);
+                return;
+            }
+            const payload = window._pendingGlobalState || {};
+            if (Object.keys(payload).length === 0) {
+                window._globalStateSaveTimer = null;
+                return;
+            }
+            window._pendingGlobalState = {};
+            window._globalStateSaveTimer = null;
+            if (typeof window.saveGlobalState === 'function') {
+                window.saveGlobalState(payload);
+            }
+        };
+
+        window.prunePendingGlobalState = function() {
+            const pending = window._pendingGlobalState || {};
+            const timestamped = [
+                { value: 'planCardsStr', ts: 'planCardsLastModified', current: () => planCardsLastModified },
+                { value: 'flightCardsStr', ts: 'flightCardsLastModified', current: () => flightCardsLastModified },
+                { value: 'infoCardsStr', ts: 'infoCardsLastModified', current: () => infoCardsLastModified },
+                { value: 'listsCardsStr', ts: 'listsCardsLastModified', current: () => listsCardsLastModified },
+                { value: 'travelMembers', ts: 'travelMembersLastModified', current: () => travelMembersLastModified },
+                { value: 'memo', ts: 'memoLastModified', current: () => memoLastModified },
+                { value: 'memoList', ts: 'memoListLastModified', current: () => memoListLastModified },
+                { value: 'titles', ts: 'titlesLastModified', current: () => titlesLastModified }
+            ];
+            let changed = false;
+            timestamped.forEach(({ value, ts, current }) => {
+                const pendingTs = Number(pending[ts] || 0);
+                const currentTs = Number(current() || 0);
+                if (pendingTs && pendingTs < currentTs) {
+                    delete pending[ts];
+                    delete pending[value];
+                    changed = true;
+                }
+            });
+            if (changed) {
+                window._pendingGlobalState = pending;
+            }
+        };
+
+        window.queueGlobalStateUpdate = function(partial, delay = 400) {
+            try {
+                if (!partial || typeof partial !== 'object') return;
+                const pending = window._pendingGlobalState || {};
+                const timestampedValueMap = {
+                    planCardsStr: 'planCardsLastModified',
+                    flightCardsStr: 'flightCardsLastModified',
+                    infoCardsStr: 'infoCardsLastModified',
+                    listsCardsStr: 'listsCardsLastModified',
+                    travelMembers: 'travelMembersLastModified',
+                    memo: 'memoLastModified',
+                    memoList: 'memoListLastModified',
+                    titles: 'titlesLastModified'
+                };
+                const timestampedTsMap = {
+                    planCardsLastModified: () => planCardsLastModified,
+                    flightCardsLastModified: () => flightCardsLastModified,
+                    infoCardsLastModified: () => infoCardsLastModified,
+                    listsCardsLastModified: () => listsCardsLastModified,
+                    travelMembersLastModified: () => travelMembersLastModified,
+                    memoLastModified: () => memoLastModified,
+                    memoListLastModified: () => memoListLastModified,
+                    titlesLastModified: () => titlesLastModified
+                };
+                const filteredPartial = {};
+                Object.keys(partial).forEach(key => {
+                    const value = partial[key];
+                    if (timestampedTsMap[key]) {
+                        const ts = Number(value || 0);
+                        const currentTs = Number(timestampedTsMap[key]() || 0);
+                        const pendingTs = Number(pending[key] || 0);
+                        if (ts && (ts < currentTs || ts < pendingTs)) {
+                            console.debug('queueGlobalStateUpdate drop stale timestamp', key, ts, { currentTs, pendingTs });
+                            return;
+                        }
+                    }
+                    if (timestampedValueMap[key]) {
+                        const tsKey = timestampedValueMap[key];
+                        const partialTs = Number(partial[tsKey] || 0);
+                        const currentTs = Number(timestampedTsMap[tsKey]() || 0);
+                        const pendingTs = Number(pending[tsKey] || 0);
+                        if (partialTs && (partialTs < currentTs || partialTs < pendingTs)) {
+                            console.debug('queueGlobalStateUpdate drop stale value', key, partialTs, { currentTs, pendingTs });
+                            return;
+                        }
+                    }
+                    filteredPartial[key] = value;
+                });
+                window._pendingGlobalState = Object.assign(window._pendingGlobalState || {}, filteredPartial);
+                window.prunePendingGlobalState();
+                console.debug({op: 'queueGlobalStateUpdate', partial: filteredPartial, pendingSnapshot: window._pendingGlobalState, initialInProgress: !!window._initialCloudRefreshInProgress});
+                // 如果還在初次雲端刷新中，暫不排程寫入，等 fetch 完成會呼叫 flush
+                if (window._initialCloudRefreshInProgress) return;
+                if (window._globalStateSaveTimer) clearTimeout(window._globalStateSaveTimer);
+                window._globalStateSaveTimer = setTimeout(window.flushPendingGlobalState, Number(delay) || 400);
+            } catch (e) {
+                console.error('queueGlobalStateUpdate error', e);
+            }
+        };
 
         // --- 離線優先 (Offline-First) 初始綁定 ---
         // 為了達到秒開速度，直接從 localStorage 載入，後續雲端再覆蓋
@@ -4735,7 +4958,14 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         const savedMemoListState = loadSyncStorage('korea_memo_list_v1', []);
         memoList = Array.isArray(savedMemoListState.data) ? savedMemoListState.data : [];
         memoListLastModified = savedMemoListState.lastModified;
-        memo = localStorage.getItem('korea_memo_2026_v3') || defaultMemo;
+        const savedMemoState = loadSyncStorage('korea_memo_v1', '');
+        const legacyMemoValue = String(localStorage.getItem('korea_memo_2026_v3') || '');
+        memo = String(savedMemoState.data || legacyMemoValue || defaultMemo);
+        memoLastModified = Number(savedMemoState.lastModified || 0);
+        if (!memoLastModified && memo && memo.trim() && memo.trim() !== String(defaultMemo || '').trim()) {
+            memoLastModified = Date.now();
+            persistSyncStorage('korea_memo_v1', memo, memoLastModified);
+        }
         checklist = safeParseJSON(localStorage.getItem('korea_chk_2026_v7'), defaultChecklist);
         const savedTitlesState = loadSyncStorage('korea_titles_v2', defaultTitles);
         titles = savedTitlesState.data;
@@ -4762,11 +4992,23 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                 await window.fsAuthFns.signInAnonymously(auth);
             }
             
-            window.fsAuthFns.onAuthStateChanged(auth, user => {
+            window.fsAuthFns.onAuthStateChanged(auth, async user => {
                 currentUser = user;
                 if(user) {
                     if (typeof window.startTripProfilesCloudSync === 'function') {
                         window.startTripProfilesCloudSync();
+                    }
+                    window._initialCloudRefreshInProgress = true;
+                    if (typeof window.fetchCurrentTripCloudState === 'function') {
+                        try {
+                            await window.fetchCurrentTripCloudState();
+                        } catch (err) {
+                            console.error('Initial cloud refresh failed', err);
+                        }
+                    }
+                    window._initialCloudRefreshInProgress = false;
+                    if (typeof window.flushPendingGlobalState === 'function') {
+                        window.flushPendingGlobalState();
                     }
                     setupRealtimeListeners();
                 } else {
@@ -4809,6 +5051,137 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         window.getTripExpensesCollectionRef = function(tripId = window.getActiveTripIdForCloud()) {
             const safeTripId = String(tripId || 'trip-default');
             return window.fsCollections.collection(db, 'artifacts', appId, 'public', 'data', 'tripStates', safeTripId, 'expenses');
+        };
+
+        window.fetchCurrentTripCloudState = async function() {
+            if (!currentUser || !db) return;
+            window._initialCloudRefreshInProgress = true;
+            if (typeof window.showCloudSyncIndicator === 'function') window.showCloudSyncIndicator(true);
+            try {
+                const globalRef = window.getTripGlobalStateRef(window.getActiveTripIdForCloud());
+                const docSnap = await window.fsCollections.getDoc(globalRef);
+                if (!docSnap.exists()) return;
+                const data = docSnap.data();
+                if (!data || typeof data !== 'object') return;
+
+                let refreshed = false;
+                const cloudPlanTS = getCloudTimestamp(data, 'planCardsLastModified');
+                const cloudFlightTS = getCloudTimestamp(data, 'flightCardsLastModified');
+                const cloudInfoTS = getCloudTimestamp(data, 'infoCardsLastModified');
+                const cloudListsTS = getCloudTimestamp(data, 'listsCardsLastModified');
+
+                if (data.planCardsStr && cloudPlanTS > planCardsLastModified) {
+                    console.debug('fetch apply planCards', {cloudPlanTS, localPlanTS: planCardsLastModified});
+                    planCardsData = safeParseJSON(data.planCardsStr, planCardsData);
+                    planCardsLastModified = cloudPlanTS;
+                    persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
+                    refreshed = true;
+                    try { if (typeof syncCustomNavsWithPlanCards === 'function') syncCustomNavsWithPlanCards(); } catch(e) { console.error('syncCustomNavsWithPlanCards failed (cloud refresh)', e); }
+                }
+                if (data.flightCardsStr && cloudFlightTS > flightCardsLastModified) {
+                    console.debug('fetch apply flightCards', {cloudFlightTS, localFlightTS: flightCardsLastModified});
+                    flightCardsData = safeParseJSON(data.flightCardsStr, flightCardsData);
+                    flightCardsLastModified = cloudFlightTS;
+                    persistCardStorage('korea_flight_v4', flightCardsData, flightCardsLastModified);
+                    refreshed = true;
+                }
+                if (data.infoCardsStr && cloudInfoTS > infoCardsLastModified) {
+                    console.debug('fetch apply infoCards', {cloudInfoTS, localInfoTS: infoCardsLastModified});
+                    infoCardsData = safeParseJSON(data.infoCardsStr, infoCardsData);
+                    infoCardsLastModified = cloudInfoTS;
+                    persistCardStorage('korea_info_v8', infoCardsData, infoCardsLastModified);
+                    refreshed = true;
+                }
+                if (data.listsCardsStr && cloudListsTS > listsCardsLastModified) {
+                    console.debug('fetch apply listsCards', {cloudListsTS, localListsTS: listsCardsLastModified});
+                    listsCardsData = safeParseJSON(data.listsCardsStr, listsCardsData);
+                    listsCardsLastModified = cloudListsTS;
+                    persistCardStorage('korea_lists_v1', listsCardsData, listsCardsLastModified);
+                    if (typeof window.ensureListsCardIds === 'function') window.ensureListsCardIds();
+                    refreshed = true;
+                }
+
+                if (Array.isArray(data.weatherLocs) && weatherLocs.length === 0) {
+                    weatherLocs = normalizeWeatherLocs(data.weatherLocs);
+                    refreshed = true;
+                }
+                if (data.weatherWidgetPlacement && typeof weatherWidgetPlacement === 'object' && !weatherWidgetPlacement.sectionTitleId && !weatherWidgetPlacement.anchorCardId && weatherWidgetPlacement.position === 'after') {
+                    weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
+                    refreshed = true;
+                }
+
+                const cloudTravelMembersTS = getCloudTimestamp(data, 'travelMembersLastModified');
+                if (Array.isArray(data.travelMembers) && cloudTravelMembersTS > travelMembersLastModified) {
+                    travelMembers = data.travelMembers;
+                    travelMembersLastModified = cloudTravelMembersTS;
+                    persistSyncStorage('korea_travel_members_v1', travelMembers, travelMembersLastModified);
+                    refreshed = true;
+                }
+
+                const cloudMemoTS = getCloudTimestamp(data, 'memoLastModified');
+                if (typeof data.memo === 'string') {
+                    const localMemoValue = String(memo || '').trim() === String(defaultMemo || '').trim() ? '' : memo;
+                    console.debug('fetch memo check', {cloudMemoTS, localMemoLastModified: memoLastModified});
+                    if (shouldReplaceLocalWithCloud(memoLastModified, cloudMemoTS, localMemoValue, data.memo)) {
+                        memo = data.memo;
+                        memoLastModified = cloudMemoTS || Date.now();
+                        persistSyncStorage('korea_memo_v1', memo, memoLastModified);
+                        try { localStorage.setItem('korea_memo_2026_v3', memo); } catch (e) { console.warn('memo local save failed', e); }
+                        refreshed = true;
+                    }
+                }
+
+                const cloudMemoListTS = getCloudTimestamp(data, 'memoListLastModified');
+                if (Array.isArray(data.memoList) && cloudMemoListTS > memoListLastModified) {
+                    console.debug('fetch apply memoList', {cloudMemoListTS, localMemoListTS: memoListLastModified});
+                    memoList = data.memoList;
+                    memoListLastModified = cloudMemoListTS;
+                    persistSyncStorage('korea_memo_list_v1', memoList, memoListLastModified);
+                    refreshed = true;
+                }
+                if (Array.isArray(data.checklist) && checklist.length === 0) {
+                    checklist = data.checklist;
+                    refreshed = true;
+                }
+                const cloudTitlesTS = getCloudTimestamp(data, 'titlesLastModified');
+                if (data.titles && cloudTitlesTS > titlesLastModified) {
+                    titles = data.titles;
+                    titlesLastModified = cloudTitlesTS;
+                    persistSyncStorage('korea_titles_v2', titles, titlesLastModified);
+                    refreshed = true;
+                }
+                if (data.customSectionTitlesStr) {
+                    customSectionTitles = normalizeCustomSectionTitles(safeParseJSON(data.customSectionTitlesStr, defaultCustomSectionTitles));
+                    refreshed = true;
+                } else if (data.customSectionTitles) {
+                    customSectionTitles = normalizeCustomSectionTitles(data.customSectionTitles);
+                    refreshed = true;
+                }
+
+                if (refreshed) {
+                    if (typeof window.prunePendingGlobalState === 'function') window.prunePendingGlobalState();
+                    initTitlesUI();
+                    renderCards('plan'); renderCards('flight'); renderCards('info'); renderCards('lists');
+                    try { if (typeof renderCustomNavs === 'function') renderCustomNavs(); } catch(e) { console.error('renderCustomNavs failed (cloud refresh)', e); }
+                    try { if (typeof updateCustomNavButtons === 'function') updateCustomNavButtons(); } catch(e) { console.error('updateCustomNavButtons failed (cloud refresh)', e); }
+                    renderWeatherSettingsList();
+                    renderChecklist();
+                    renderMembersEditList(); renderPayerRadios(); renderSplitMembersCheckboxes();
+                    if (typeof window.renderSectionLockSettings === 'function') window.renderSectionLockSettings();
+                    if(document.getElementById('memo-input') && document.activeElement !== document.getElementById('memo-input')) {
+                        document.getElementById('memo-input').value = memo;
+                        detectLinks();
+                    }
+                }
+            } catch (e) {
+                console.error('fetchCurrentTripCloudState failed', e);
+            } finally {
+                window._initialCloudRefreshInProgress = false;
+                if (typeof window.flushPendingGlobalState === 'function') {
+                    window.flushPendingGlobalState();
+                }
+                if (typeof window.showCloudSyncIndicator === 'function') window.showCloudSyncIndicator(false);
+            }
         };
 
         window.copyLegacyCloudExpensesToTrip = function(tripId) {
@@ -4903,8 +5276,12 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 planCardsData = safeParseJSON(data.planCardsStr, planCardsData);
                                 planCardsLastModified = cloudPlanTS;
                                 persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
+                                try {
+                                    console.log('[realtime] planCardsData replaced from cloud, id count=', (planCardsData && planCardsData.length) || 0);
+                                    if (typeof syncCustomNavsWithPlanCards === 'function') syncCustomNavsWithPlanCards();
+                                } catch(e) { console.error('syncCustomNavsWithPlanCards failed', e); }
                             } else if (planCardsLastModified > cloudPlanTS && currentUser) {
-                                window.saveGlobalState({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified });
+                                window.queueGlobalStateUpdate({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified });
                             }
                         }
                         if (data.flightCardsStr) {
@@ -4913,7 +5290,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 flightCardsLastModified = cloudFlightTS;
                                 persistCardStorage('korea_flight_v4', flightCardsData, flightCardsLastModified);
                             } else if (flightCardsLastModified > cloudFlightTS && currentUser) {
-                                window.saveGlobalState({ flightCardsStr: JSON.stringify(flightCardsData), flightCardsLastModified });
+                                window.queueGlobalStateUpdate({ flightCardsStr: JSON.stringify(flightCardsData), flightCardsLastModified });
                             }
                         }
                         if (data.infoCardsStr) {
@@ -4922,7 +5299,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 infoCardsLastModified = cloudInfoTS;
                                 persistCardStorage('korea_info_v8', infoCardsData, infoCardsLastModified);
                             } else if (infoCardsLastModified > cloudInfoTS && currentUser) {
-                                window.saveGlobalState({ infoCardsStr: JSON.stringify(infoCardsData), infoCardsLastModified });
+                                window.queueGlobalStateUpdate({ infoCardsStr: JSON.stringify(infoCardsData), infoCardsLastModified });
                             }
                         }
                         if (data.listsCardsStr) {
@@ -4932,11 +5309,13 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 persistCardStorage('korea_lists_v1', listsCardsData, listsCardsLastModified);
                                 if (typeof window.ensureListsCardIds === 'function') window.ensureListsCardIds();
                             } else if (listsCardsLastModified > cloudListsTS && currentUser) {
-                                window.saveGlobalState({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified });
+                                window.queueGlobalStateUpdate({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified });
                             }
                         }
-                        if(data.weatherLocs) weatherLocs = normalizeWeatherLocs(data.weatherLocs);
-                        if(data.weatherWidgetPlacement) weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
+                        if (Array.isArray(data.weatherLocs) && weatherLocs.length === 0) weatherLocs = normalizeWeatherLocs(data.weatherLocs);
+                        if (data.weatherWidgetPlacement && typeof weatherWidgetPlacement === 'object' && !weatherWidgetPlacement.sectionTitleId && !weatherWidgetPlacement.anchorCardId && weatherWidgetPlacement.position === 'after') {
+                            weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
+                        }
                         const cloudTravelMembersTS = getCloudTimestamp(data, 'travelMembersLastModified');
                         if (Array.isArray(data.travelMembers)) {
                             if (cloudTravelMembersTS > travelMembersLastModified) {
@@ -4944,10 +5323,21 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 travelMembersLastModified = cloudTravelMembersTS;
                                 persistSyncStorage('korea_travel_members_v1', travelMembers, travelMembersLastModified);
                             } else if (travelMembersLastModified > cloudTravelMembersTS && currentUser) {
-                                window.saveGlobalState({ travelMembers: travelMembers, travelMembersLastModified });
+                                window.queueGlobalStateUpdate({ travelMembers: travelMembers, travelMembersLastModified });
                             }
                         }
-                        if(data.memo !== undefined) memo = data.memo;
+                        const cloudMemoTS = getCloudTimestamp(data, 'memoLastModified');
+                        if (typeof data.memo === 'string') {
+                            const localMemoValue = String(memo || '').trim() === String(defaultMemo || '').trim() ? '' : memo;
+                            if (shouldReplaceLocalWithCloud(memoLastModified, cloudMemoTS, localMemoValue, data.memo)) {
+                                memo = data.memo;
+                                memoLastModified = cloudMemoTS || Date.now();
+                                persistSyncStorage('korea_memo_v1', memo, memoLastModified);
+                                try { localStorage.setItem('korea_memo_2026_v3', memo); } catch (e) { console.warn('memo local save failed', e); }
+                            } else if (shouldPromoteLocalToCloud(memoLastModified, cloudMemoTS, memo) && currentUser) {
+                                window.queueGlobalStateUpdate({ memo: memo, memoLastModified });
+                            }
+                        }
                         const cloudMemoListTS = getCloudTimestamp(data, 'memoListLastModified');
                         if (Array.isArray(data.memoList)) {
                             if (cloudMemoListTS > memoListLastModified) {
@@ -4955,10 +5345,10 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 memoListLastModified = cloudMemoListTS;
                                 persistSyncStorage('korea_memo_list_v1', memoList, memoListLastModified);
                             } else if (memoListLastModified > cloudMemoListTS && currentUser) {
-                                window.saveGlobalState({ memoList: memoList, memoListLastModified });
+                                window.queueGlobalStateUpdate({ memoList: memoList, memoListLastModified });
                             }
                         }
-                        if(data.checklist) checklist = data.checklist;
+                        if (Array.isArray(data.checklist) && checklist.length === 0) checklist = data.checklist;
                         const cloudTitlesTS = getCloudTimestamp(data, 'titlesLastModified');
                         if (data.titles) {
                             if (cloudTitlesTS > titlesLastModified) {
@@ -4966,7 +5356,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 titlesLastModified = cloudTitlesTS;
                                 persistSyncStorage('korea_titles_v2', titles, titlesLastModified);
                             } else if (titlesLastModified > cloudTitlesTS && currentUser) {
-                                window.saveGlobalState({ titles: titles, titlesLastModified });
+                                window.queueGlobalStateUpdate({ titles: titles, titlesLastModified });
                             }
                         }
                         if (data.customSectionTitlesStr) {
@@ -4995,8 +5385,11 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                             localStorage.setItem('korea_pending_changes_v1', JSON.stringify(window.pendingChanges));
                         }
 
+                        if (typeof window.prunePendingGlobalState === 'function') window.prunePendingGlobalState();
                         initTitlesUI();
                         renderCards('plan'); renderCards('flight'); renderCards('info'); renderCards('lists');
+                        try { if (typeof renderCustomNavs === 'function') renderCustomNavs(); } catch(e) { console.error('renderCustomNavs failed (snapshot)', e); }
+                        try { if (typeof updateCustomNavButtons === 'function') updateCustomNavButtons(); } catch(e) { console.error('updateCustomNavButtons failed (snapshot)', e); }
                         renderWeatherSettingsList();
                         renderChecklist();
                         renderMembersEditList(); renderPayerRadios(); renderSplitMembersCheckboxes();
@@ -5025,6 +5418,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                             checklist: seedSnapshot.checklist || [],
                             memo: seedSnapshot.memo || '',
                             memoList: seedSnapshot.memoList || [],
+                            memoLastModified: nowTs,
                             titles: seedSnapshot.titles || window.deepCloneJSON(defaultTitles, {}),
                             isLocked: !!seedSnapshot.isAppLocked,
                             customSectionTitlesStr: JSON.stringify(normalizeCustomSectionTitles(seedSnapshot.customSectionTitles || defaultCustomSectionTitles))
@@ -5108,12 +5502,19 @@ window.saveTitle = async function(key, val, forceSave) {
             titles[key] = val;
             titlesLastModified = Date.now();
             persistSyncStorage('korea_titles_v2', titles, titlesLastModified);
-            window.saveGlobalState({ titles: titles, titlesLastModified });
-		}
+            window.queueGlobalStateUpdate({ titles: titles, titlesLastModified });
+            initTitlesUI();
+            const activeTab = window.getCurrentVisibleTabId();
+            if (activeTab === 'plan') {
+                if (typeof renderCustomNavs === 'function') renderCustomNavs();
+            if (typeof updateCustomNavButtons === 'function') updateCustomNavButtons();
+            if (typeof renderPlanWithFilter === 'function') renderPlanWithFilter();
+            }
+        }
 
         window.saveCustomSectionTitles = function() {
             localStorage.setItem('korea_custom_titles_v1', JSON.stringify(customSectionTitles));
-            window.saveGlobalState({ customSectionTitlesStr: JSON.stringify(customSectionTitles) });
+            window.queueGlobalStateUpdate({ customSectionTitlesStr: JSON.stringify(customSectionTitles) });
         }
 
         window.saveTravelMembers = async function() {
@@ -5122,7 +5523,7 @@ window.saveTitle = async function(key, val, forceSave) {
             }
             travelMembersLastModified = Date.now();
             persistSyncStorage('korea_travel_members_v1', travelMembers, travelMembersLastModified);
-            window.saveGlobalState({ travelMembers: travelMembers, travelMembersLastModified });
+            window.queueGlobalStateUpdate({ travelMembers: travelMembers, travelMembersLastModified });
         };
 
         window.saveMemoList = async function() {
@@ -5131,7 +5532,7 @@ window.saveTitle = async function(key, val, forceSave) {
             }
             memoListLastModified = Date.now();
             persistSyncStorage('korea_memo_list_v1', memoList, memoListLastModified);
-            window.saveGlobalState({ memoList: memoList, memoListLastModified });
+            window.queueGlobalStateUpdate({ memoList: memoList, memoListLastModified });
         };
 
         window.getCardDataArrayByTab = function(tab) {
@@ -5445,10 +5846,10 @@ window.saveTitle = async function(key, val, forceSave) {
             const validSectionIds = new Set(sectionList.map(item => item.id));
             if (tab === 'info') {
                 const normalizedPlacement = normalizeWeatherWidgetPlacement(weatherWidgetPlacement);
-                if (normalizedPlacement.sectionTitleId && !validSectionIds.has(normalizedPlacement.sectionTitleId)) {
+                    if (normalizedPlacement.sectionTitleId && !validSectionIds.has(normalizedPlacement.sectionTitleId)) {
                     weatherWidgetPlacement = { sectionTitleId: '', anchorCardId: '', position: 'after' };
                     localStorage.setItem('korea_weather_widget_placement_v1', JSON.stringify(weatherWidgetPlacement));
-                    window.saveGlobalState({ weatherWidgetPlacement: weatherWidgetPlacement });
+                    window.queueGlobalStateUpdate({ weatherWidgetPlacement: weatherWidgetPlacement });
                 }
             }
             if (tab === 'lists') {
@@ -6863,32 +7264,35 @@ window.saveTitle = async function(key, val, forceSave) {
                         <div class="${isPlanTab ? 'text-[11px]' : 'text-[10px]'} px-2 py-0.5 rounded mr-3 mt-0.5 border border-black/5 shrink-0 font-bold" style="background-color: ${toHex(item.style)}; color: ${toHex(item.textColor || '#1f2937')};">${item.badge}</div>
                         <div class="flex-1 w-full overflow-hidden">
                             <p class="${isPlanTab ? 'text-xs' : 'text-sm'} font-bold break-words" style="color: ${toHex(item.titleColor || item.textColor || '#111827')};">${item.title}</p>
-							${item.details ? `<div class="mt-1.5 flex flex-wrap gap-1.5">` + item.details.map(d => 
-                                d.isLink && d.text ? (function(){
-                                    let url = d.text;
-                                    const isNaver = url.includes('naver.com') || url.includes('naver.me');
-                                    const isGoogle = url.includes('google.com') || url.includes('goo.gl');
-                                    
-                                    if (isNaver && !url.includes('language=')) {
-                                        url += (url.includes('?') ? '&' : '?') + 'language=zh';
+                            ${(() => {
+                                const detailHtml = Array.isArray(item.details) && item.details.length ? item.details.map(d => {
+                                    if (d.isLink && d.text) {
+                                        let url = d.text;
+                                        const isNaver = url.includes('naver.com') || url.includes('naver.me');
+                                        const isGoogle = url.includes('google.com') || url.includes('goo.gl');
+                                        if (isNaver && !url.includes('language=')) {
+                                            url += (url.includes('?') ? '&' : '?') + 'language=zh';
+                                        }
+                                        let btnClass = "bg-white/70 text-gray-700 border-gray-300";
+                                        let icon = "<i class='fas fa-link mr-1'></i>";
+                                        if (isNaver) {
+                                            btnClass = "bg-[#03C75A] text-white border-transparent";
+                                            icon = "<i class='fas fa-map-pin mr-1'></i>";
+                                        } else if (isGoogle) {
+                                            btnClass = "bg-[#4285F4] text-white border-transparent";
+                                            icon = "<i class='fab fa-google mr-1'></i>";
+                                        }
+                                        const label = d.linkName || "網址";
+                                        return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold truncate w-fit max-w-full shadow-sm active:scale-95 transition-transform hover:opacity-90">${icon}${label}</a>`;
                                     }
-
-                                    let btnClass = "bg-white/70 text-gray-700 border-gray-300";
-                                    let icon = "<i class='fas fa-link mr-1'></i>";
-                                    if (isNaver) {
-                                        btnClass = "bg-[#03C75A] text-white border-transparent";
-                                        icon = "<i class='fas fa-map-pin mr-1'></i>";
-                                    } else if (isGoogle) {
-                                        btnClass = "bg-[#4285F4] text-white border-transparent";
-                                        icon = "<i class='fab fa-google mr-1'></i>";
+                                    if (d.text) {
+                                        return `<p class="${isPlanTab ? 'text-xs text-gray-800' : 'text-[11px] text-gray-700'} w-full break-words whitespace-pre-wrap mb-0.5">${d.text}</p>`;
                                     }
-
-                                    const label = d.linkName || "網址";
-                                    return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold truncate w-fit max-w-full shadow-sm active:scale-95 transition-transform hover:opacity-90">${icon}${label}</a>`;
-                                })()
-                                : (d.text ? `<p class="${isPlanTab ? 'text-xs text-gray-800' : 'text-[11px] text-gray-700'} w-full break-words whitespace-pre-wrap mb-0.5">${d.text}</p>` : '')
-                            ).join('') + `</div>` : ''}
-							</div>
+                                    return '';
+                                }).join('') : '';
+                                return detailHtml ? `<div class="mt-1.5 flex flex-wrap gap-1.5">${detailHtml}</div>` : '';
+                            })()}
+                            </div>
                     </div>`).join('') + `</div>`;
             } else if (b.type === 'alert') {
                 return `<div class="p-3 rounded border text-xs flex items-start border-black/5 shadow-sm" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">${b.icon ? `<span class="mr-2 text-base">${b.icon}</span>` : ''}<div class="whitespace-pre-wrap flex-1 leading-relaxed break-words">${b.text}</div></div>`;
@@ -7057,7 +7461,7 @@ window.saveTitle = async function(key, val, forceSave) {
                 position: dir < 0 ? 'before' : 'after'
             };
             localStorage.setItem('korea_weather_widget_placement_v1', JSON.stringify(weatherWidgetPlacement));
-            window.saveGlobalState({ weatherWidgetPlacement: weatherWidgetPlacement });
+            window.queueGlobalStateUpdate({ weatherWidgetPlacement: weatherWidgetPlacement });
             renderCards('info');
         }
 
@@ -7082,10 +7486,10 @@ window.saveTitle = async function(key, val, forceSave) {
             }
 
             // 2. 背景上傳到 Firebase 雲端
-            if (tab === 'plan') window.saveGlobalState({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified: planCardsLastModified });
-            if (tab === 'flight') window.saveGlobalState({ flightCardsStr: JSON.stringify(flightCardsData), flightCardsLastModified: flightCardsLastModified });
-            if (tab === 'info') window.saveGlobalState({ infoCardsStr: JSON.stringify(infoCardsData), infoCardsLastModified: infoCardsLastModified });
-            if (tab === 'lists') window.saveGlobalState({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified: listsCardsLastModified });
+            if (tab === 'plan') window.queueGlobalStateUpdate({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified: planCardsLastModified });
+            if (tab === 'flight') window.queueGlobalStateUpdate({ flightCardsStr: JSON.stringify(flightCardsData), flightCardsLastModified: flightCardsLastModified });
+            if (tab === 'info') window.queueGlobalStateUpdate({ infoCardsStr: JSON.stringify(infoCardsData), infoCardsLastModified: infoCardsLastModified });
+            if (tab === 'lists') window.queueGlobalStateUpdate({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified: listsCardsLastModified });
             
             // 3. 立即強制刷新畫面，瞬間看到修改結果
             if(typeof renderCards === 'function') {
@@ -7094,6 +7498,15 @@ window.saveTitle = async function(key, val, forceSave) {
                 } catch(e) {
                     console.error("renderCards error for tab " + tab, e);
                 }
+            }
+
+            if (tab === 'plan') {
+                try {
+                    if (typeof renderCustomNavs === 'function') renderCustomNavs();
+                } catch(e) { console.error('renderCustomNavs failed', e); }
+                try {
+                    if (typeof updateCustomNavButtons === 'function') updateCustomNavButtons();
+                } catch(e) { console.error('updateCustomNavButtons failed', e); }
             }
             
             // 4. 重新初始化行程 DAY 按鈕（確保新增的 DAY 顯示在選單中）
@@ -8094,7 +8507,7 @@ window.saveTitle = async function(key, val, forceSave) {
                 position: 'after'
             };
             localStorage.setItem('korea_weather_widget_placement_v1', JSON.stringify(weatherWidgetPlacement));
-            window.saveGlobalState({ weatherWidgetPlacement: weatherWidgetPlacement });
+            window.queueGlobalStateUpdate({ weatherWidgetPlacement: weatherWidgetPlacement });
             renderCards('info');
             renderWeatherSettingsList();
         }
@@ -8156,7 +8569,7 @@ window.saveTitle = async function(key, val, forceSave) {
                 if(data.results && data.results.length > 0) {
                     const city = data.results[0];
                     weatherLocs.push({ id: 'loc_' + Date.now(), name: query, lat: city.latitude, lon: city.longitude, color: '#f3f4f6' });
-                    window.saveGlobalState({ weatherLocs: weatherLocs });
+                    window.queueGlobalStateUpdate({ weatherLocs: weatherLocs });
                     
                     // ★ 成功新增後，立刻去抓最新的真實天氣資料，並更新畫面 ★
                     await fetchWeather(true); 
@@ -8175,28 +8588,28 @@ window.saveTitle = async function(key, val, forceSave) {
         window.deleteWeatherLoc = function(idx) {
             showMsg('確定要移除「' + weatherLocs[idx].name + '」嗎？', true, () => {
                 weatherLocs.splice(idx, 1);
-                window.saveGlobalState({ weatherLocs: weatherLocs });
+                window.queueGlobalStateUpdate({ weatherLocs: weatherLocs });
                 fetchWeather(true).then(() => renderWeatherSettingsList());
             });
         }
 
         window.updateWeatherLocData = function(idx, field, val) {
             weatherLocs[idx][field] = val;
-            window.saveGlobalState({ weatherLocs: weatherLocs });
+            window.queueGlobalStateUpdate({ weatherLocs: weatherLocs });
             renderWeatherSettingsList();
         }
 
         window.moveWeatherLoc = function(idx, dir) {
             if(dir===-1 && idx>0) { let t = weatherLocs[idx]; weatherLocs[idx]=weatherLocs[idx-1]; weatherLocs[idx-1]=t; }
             if(dir===1 && idx<weatherLocs.length-1) { let t = weatherLocs[idx]; weatherLocs[idx]=weatherLocs[idx+1]; weatherLocs[idx+1]=t; }
-            window.saveGlobalState({ weatherLocs: weatherLocs });
+            window.queueGlobalStateUpdate({ weatherLocs: weatherLocs });
             // ★ 移動後也同步更新天氣資料，以免錯位 ★
             fetchWeather(true).then(() => renderWeatherSettingsList()); 
         }
 
         window.updateWeatherColor = function(idx, hex) { 
             weatherLocs[idx].color = hex; 
-            window.saveGlobalState({ weatherLocs: weatherLocs });
+            window.queueGlobalStateUpdate({ weatherLocs: weatherLocs });
             renderWeatherSettingsList(); 
         }
 		
@@ -8552,6 +8965,7 @@ window.saveTitle = async function(key, val, forceSave) {
                     try {
                         const snapshot = window.calculateSettlementSnapshot();
                         window.currentSettlementData = snapshot.balances;
+                        window.currentPersonalExpenses = snapshot.personalExpenses || {};
                         window.currentTransfers = { global: snapshot.globalTransfers, p2p: snapshot.p2pTransfers };
                         window.renderPerCapitaList();
                     } catch(e) {
@@ -8637,6 +9051,7 @@ window.saveTitle = async function(key, val, forceSave) {
                             try {
                                 const snapshot = window.calculateSettlementSnapshot();
                                 window.currentSettlementData = snapshot.balances;
+                                window.currentPersonalExpenses = snapshot.personalExpenses || {};
                                 window.currentTransfers = { global: snapshot.globalTransfers, p2p: snapshot.p2pTransfers };
                                 window.renderPerCapitaList();
                             } catch(e) {
@@ -8681,11 +9096,18 @@ window.saveTitle = async function(key, val, forceSave) {
                 const curName = currencyNames[exCur] || '外幣';
                 const cat = catMap[ex.category] || catMap.other;
                 let splitText = '';
-                
-                if (ex.splitMembers && ex.splitMembers.length > 0) {
-                    let pKrw = Math.round(ex.krw / ex.splitMembers.length); let pTwd = Math.round(ex.twd / ex.splitMembers.length);
-                    splitText = `<span class="bg-[#f0f9ff] px-1.5 py-0.5 rounded border border-[#bae6fd] whitespace-normal break-words leading-relaxed w-fit"><i class="fas fa-users text-[#0284c7] mr-1"></i>分攤: ${ex.splitMembers.join(', ')} (每人${curSym}${pKrw.toLocaleString()} / NT$${pTwd.toLocaleString()})</span>`;
+                const hasSplit = ex.splitMembers && ex.splitMembers.length > 0;
+                if (hasSplit) {
+                    const first = ex.splitMembers[0] || '';
+                    splitText = `<span class="bg-[#f0f9ff] px-1.5 py-0.5 rounded border border-[#bae6fd] whitespace-normal break-words leading-relaxed w-fit"><i class="fas fa-users text-[#0284c7] mr-1"></i>分攤: ${window.escapeHtml(first)} <a href="javascript:void(0)" onclick="window.openExpenseDetail('${ex.id}')" class="underline ml-2 text-[10px]">查看明細</a></span>`;
                 }
+
+                // 判定分類：消費 / 分攤 / 代墊
+                const isPersonal = (!hasSplit) || (hasSplit && ex.splitMembers.length === 1 && ex.splitMembers[0] === ex.payer);
+                let classBadge = '';
+                if (isPersonal) classBadge = `<span class="bg-[#fff7ed] text-[#92400e] px-2 py-0.5 rounded-full text-[10px] font-bold">消費</span>`;
+                else if (hasSplit) classBadge = `<span class="bg-[#ecfeff] text-[#065f46] px-2 py-0.5 rounded-full text-[10px] font-bold">分攤</span>`;
+                else if (ex.payer) classBadge = `<span class="bg-[#eef2ff] text-[#3730a3] px-2 py-0.5 rounded-full text-[10px] font-bold">代墊</span>`;
                 return `
                 <div class="p-3 rounded-lg border border-gray-200 shadow-sm flex flex-col mb-3 transition-colors duration-300 bg-white">
                     <div class="flex items-start justify-between w-full">
@@ -8695,6 +9117,7 @@ window.saveTitle = async function(key, val, forceSave) {
                                 <p class="text-sm font-bold text-gray-900 truncate">${ex.title}</p>
                                 <p class="text-[10px] font-bold text-gray-500">${ex.time} ${ex.rate ? `(${curName} 匯率: ${ex.rate})` : ''}</p>
                                 ${ex.payer || splitText ? `<div class="mt-1.5 flex flex-col gap-1 text-[10px] text-muji-dark font-bold">${ex.payer ? `<span class="bg-[#fef9c3] px-1.5 py-0.5 rounded border border-[#fde047] w-fit"><i class="fas fa-user-check text-[#a16207] mr-1"></i>墊: ${ex.payer}</span>` : ''}${splitText}</div>` : ''}
+                                <div class="absolute top-3 right-3">${classBadge}</div>
                             </div>
                         </div>
                         <div class="text-right shrink-0">
@@ -8887,26 +9310,47 @@ window.saveTitle = async function(key, val, forceSave) {
 
         window.calculateSettlementSnapshot = function() {
             const balances = {};
-            travelMembers.forEach(m => balances[m] = { paid: 0, shouldPay: 0, paidList: [], shouldPayList: [] });
+            // 新增 personalList 用於儲存「消費支出」（個人自付，不列為代墊）
+            travelMembers.forEach(m => balances[m] = { paid: 0, shouldPay: 0, paidList: [], shouldPayList: [], personalList: [] });
 
+            const personalExpenses = {};
+            travelMembers.forEach(m => personalExpenses[m] = []);
+
+            // 第一階段：分類每筆費用是「分攤」或「個人自付(消費支出)」
             expenses.forEach(ex => {
-                const effectiveSplitMembers = (ex.splitMembers && ex.splitMembers.length > 0)
-                    ? ex.splitMembers
-                    : (ex.payer ? [ex.payer] : []);
-                if (effectiveSplitMembers.length === 0) return;
-
+                const hasSplit = Array.isArray(ex.splitMembers) && ex.splitMembers.length > 0;
+                const splitMembers = hasSplit ? ex.splitMembers : [];
                 const totalAmount = Number(ex.twd || 0);
+
+                // 判定為個人消費的條件：
+                // 1) 未選參與分攤人（splitMembers 為空）
+                // 或 2) 只有一位參與分攤人，且該人等於付款人（即代墊人自己）
+                const isPersonal = (!hasSplit) || (splitMembers.length === 1 && splitMembers[0] === ex.payer);
+
+                if (isPersonal) {
+                    // 將此筆紀錄視為個人消費，放入 personalExpenses，並且不計入代墊/分攤的平衡計算
+                    const owner = (ex.payer || '').trim() || '';
+                    if (owner && personalExpenses[owner]) {
+                        personalExpenses[owner].push({ title: ex.title, amount: totalAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW', category: ex.category });
+                        // 同步放到 balances 的 personalList（供渲染與匯出使用）
+                        if (balances[owner]) balances[owner].personalList.push({ title: ex.title, amount: totalAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW', category: ex.category });
+                    }
+                    return; // 不繼續計算此筆
+                }
+
+                // 若非個人消費，則視為分攤項目（至少有一位參與分攤人且不是單人自付）
+                const effectiveSplitMembers = splitMembers.length > 0 ? splitMembers : (ex.payer ? [ex.payer] : []);
                 const splitAmount = effectiveSplitMembers.length ? (totalAmount / effectiveSplitMembers.length) : 0;
 
                 if (ex.payer && balances[ex.payer]) {
                     balances[ex.payer].paid += totalAmount;
-                    balances[ex.payer].paidList.push({ title: ex.title, amount: totalAmount, splitMembers: effectiveSplitMembers, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW' });
+                    balances[ex.payer].paidList.push({ title: ex.title, amount: totalAmount, splitMembers: effectiveSplitMembers, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW', category: ex.category });
                 }
 
                 effectiveSplitMembers.forEach(m => {
                     if (balances[m]) {
                         balances[m].shouldPay += splitAmount;
-                        balances[m].shouldPayList.push({ title: ex.title, amount: splitAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW', payer: ex.payer || '', splitMembers: effectiveSplitMembers });
+                        balances[m].shouldPayList.push({ title: ex.title, amount: splitAmount, time: ex.time, krw: ex.krw, rate: ex.rate, rawDate: ex.rawDate, currency: ex.currency || 'KRW', payer: ex.payer || '', splitMembers: effectiveSplitMembers, category: ex.category });
                     }
                 });
             });
@@ -8940,11 +9384,13 @@ window.saveTitle = async function(key, val, forceSave) {
                 owes[m] = {};
                 travelMembers.forEach(c => owes[m][c] = 0);
             });
+            // 建立逐人欠款關係（跳過個人消費項目）
             expenses.forEach(ex => {
-                const effectiveSplitMembers = (ex.splitMembers && ex.splitMembers.length > 0)
-                    ? ex.splitMembers
-                    : (ex.payer ? [ex.payer] : []);
-                if (effectiveSplitMembers.length === 0 || !ex.payer) return;
+                const hasSplit = Array.isArray(ex.splitMembers) && ex.splitMembers.length > 0;
+                const splitMembers = hasSplit ? ex.splitMembers : [];
+                const isPersonal = (!hasSplit) || (splitMembers.length === 1 && splitMembers[0] === ex.payer);
+                if (isPersonal || !ex.payer) return;
+                const effectiveSplitMembers = splitMembers.length > 0 ? splitMembers : [ex.payer];
                 const splitAmount = Number(ex.twd || 0) / effectiveSplitMembers.length;
                 effectiveSplitMembers.forEach(m => {
                     if (m !== ex.payer && owes[m] && owes[m][ex.payer] !== undefined) owes[m][ex.payer] += splitAmount;
@@ -8968,7 +9414,7 @@ window.saveTitle = async function(key, val, forceSave) {
                 }
             }
 
-            return { balances, globalTransfers, p2pTransfers };
+            return { balances, globalTransfers, p2pTransfers, personalExpenses };
         };
 
         window.renderSettlementEmptyState = function(mode = 'inline') {
@@ -9048,9 +9494,15 @@ window.saveTitle = async function(key, val, forceSave) {
                     '</div>' +
                     '<span class="text-[10px] px-2 py-1 rounded-full font-bold shrink-0 ' + badgeClass + '">' + balanceText + '</span>' +
                     '</div>' +
-                    '<div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-1.5 font-bold">' +
-                    '<div class="rounded-md bg-gray-50 px-2 py-1.5">總代墊: NT$ ' + Math.round(data.paid).toLocaleString() + '</div>' +
-                    '<div class="rounded-md bg-gray-50 px-2 py-1.5 text-right">應分攤: NT$ ' + Math.round(data.shouldPay).toLocaleString() + '</div>' +
+                    '<div class="grid gap-2 text-xs text-gray-500 mb-1.5 font-bold">' +
+                    '<div class="rounded-md bg-[#eef2ff] border border-[#bfdbfe] px-2 py-2">' +
+                        '<div class="text-[11px] text-[#1e3a8a]">代墊總額</div>' +
+                        '<div class="text-sm text-gray-900 mt-1">NT$ ' + Math.round(data.paid).toLocaleString() + '</div>' +
+                    '</div>' +
+                    '<div class="rounded-md bg-[#fffbeb] border border-[#fde68a] px-2 py-2">' +
+                        '<div class="text-[11px] text-[#92400e]">分攤總額</div>' +
+                        '<div class="text-sm text-gray-900 mt-1">NT$ ' + Math.round(data.shouldPay).toLocaleString() + '</div>' +
+                    '</div>' +
                     '</div>' +
                     '<div class="flex items-end justify-between text-sm font-bold ' + balanceColor + ' pt-1.5 border-t border-gray-100 mt-1">' +
                     '<span class="leading-4">結算金額</span>' +
@@ -9064,6 +9516,7 @@ window.saveTitle = async function(key, val, forceSave) {
 		window.openSettlementModal = function() {
             const snapshot = window.calculateSettlementSnapshot();
             window.currentSettlementData = snapshot.balances;
+            window.currentPersonalExpenses = snapshot.personalExpenses || {};
             window.currentTransfers = { global: snapshot.globalTransfers, p2p: snapshot.p2pTransfers };
             const settlementContent = document.getElementById('settlement-content');
             const settlementModal = document.getElementById('settlement-modal');
@@ -9091,6 +9544,32 @@ window.escapeHtml = function(value) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 };
+
+// 全域逐行文字 diff helper（若已存在則保留現有實作）
+if (typeof window.computeTextDiff !== 'function') {
+    window.computeTextDiff = function(oldStr, newStr) {
+        try {
+            oldStr = oldStr === undefined || oldStr === null ? '' : String(oldStr);
+            newStr = newStr === undefined || newStr === null ? '' : String(newStr);
+            if (oldStr === newStr) return `<div class="text-xs text-gray-600">${window.formatChangeValue ? window.formatChangeValue(newStr) : window.escapeHtml(newStr)}</div>`;
+            const oldLines = oldStr.split(/\r?\n/);
+            const newLines = newStr.split(/\r?\n/);
+            const maxLen = Math.max(oldLines.length, newLines.length);
+            const parts = [];
+            for (let i = 0; i < maxLen; i++) {
+                const o = oldLines[i] || '';
+                const n = newLines[i] || '';
+                if (o === n) {
+                    parts.push(`<div class="text-xs text-gray-700">${window.escapeHtml(o)}</div>`);
+                } else {
+                    if (o) parts.push(`<div class="text-xs text-red-600"><del>${window.escapeHtml(o)}</del></div>`);
+                    if (n) parts.push(`<div class="text-xs text-green-600"><ins>${window.escapeHtml(n)}</ins></div>`);
+                }
+            }
+            return parts.join('');
+        } catch (e) { return `<div class="text-xs text-gray-600">${window.formatChangeValue ? window.formatChangeValue(newStr) : window.escapeHtml(newStr)}</div>`; }
+    };
+}
 
 window.formatSettlementTwd = function(amount) {
     return 'NT$ ' + Math.round(amount || 0).toLocaleString();
@@ -9155,18 +9634,20 @@ window.renderSettlementDetailSection = function(options) {
 
 window.renderSettlementLedgerRows = function(items, type, memberName) {
     if (!Array.isArray(items) || items.length === 0) {
-        return `<div class="text-xs text-gray-400 py-1">${type === 'paid' ? '無代墊紀錄' : '無分攤紀錄'}</div>`;
+        const emptyMsg = type === 'paid' ? '無代墊紀錄' : (type === 'shouldPay' ? '無分攤紀錄' : '無消費支出');
+        return `<div class="text-xs text-gray-400 py-1">${emptyMsg}</div>`;
     }
 
     return items.map(item => {
         const isPaid = type === 'paid';
+        const isPersonal = type === 'personal';
         const note = isPaid
             ? `幫 ${window.getPaidForText(item.splitMembers, memberName)} 付`
-            : (item.payer ? `付款人：${item.payer}` : '');
+            : (isPersonal ? '個人消費' : (item.payer ? `付款人：${item.payer}` : ''));
         const safeTitle = window.escapeHtml(item.title);
         const safeNote = window.escapeHtml(note);
-        const amountClass = isPaid ? 'text-[#15803d]' : 'text-[#e11d48]';
-        const sign = isPaid ? '+' : '-';
+        const amountClass = isPaid ? 'text-[#15803d]' : (isPersonal ? 'text-gray-700' : 'text-[#e11d48]');
+        const sign = isPaid ? '+' : (isPersonal ? '- ' : '-');
         return `
             <div class="flex justify-between items-start gap-3 text-xs py-2 border-b border-gray-100 last:border-0">
                 <div class="min-w-0 flex-1">
@@ -9200,7 +9681,7 @@ window.refreshSettlementData = function() {
         if (btn) {
             setTimeout(() => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>手動更新';
+                btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>更新';
             }, 500);
         }
         
@@ -9214,7 +9695,7 @@ window.refreshSettlementData = function() {
         console.error('更新結算失敗：', e);
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>手動更新';
+            btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>更新';
         }
         if (typeof showMsg === 'function') {
             showMsg('更新失敗，請稍後重試。');
@@ -9271,6 +9752,13 @@ window.showSettlementDetail = function(memberName) {
             countLabel: sortedPaid.length + ' 筆',
             defaultOpen: false,
             content: window.renderSettlementLedgerRows(sortedPaid, 'paid', memberName)
+        }),
+        window.renderSettlementDetailSection({
+            id: 'detail-sec-personal',
+            title: '消費支出',
+            countLabel: (data.personalList ? data.personalList.length : 0) + ' 筆',
+            defaultOpen: false,
+            content: window.renderSettlementLedgerRows(data.personalList || [], 'personal', memberName)
         }),
         window.renderSettlementDetailSection({
             id: 'detail-sec-shouldpay',
@@ -9331,8 +9819,16 @@ window.closeSettlementModal = function() {
         let defs = [];
         try { defs = JSON.parse(localStorage.getItem('korea_exp_category_defs_v2') || '[]'); } catch (e) {}
         const hit = (defs || []).find(x => x.key === v);
-        const label = hit ? ((hit.icon || '🧾') + ' ' + (hit.name || '其他')) : (v ? ('🧾 ' + v) : '🧾 其他');
-        return TextCell(label, bg);
+        const defaultNames = { stay: '住宿', food: '餐飲', convenience: '超商', supermarket: '超市', cosmetics: '美妝', shop: '購物', traffic: '交通', ticket: '票券', other: '其他' };
+        const defaultIcons = { stay: '🏨', food: '🍽️', convenience: '🏪', supermarket: '🛒', cosmetics: '💄', shop: '🛍️', traffic: '🚌', ticket: '🎟️', other: '🧾' };
+        if (hit) {
+            const label = (hit.icon || '🧾') + ' ' + (hit.name || '其他');
+            return TextCell(label, bg);
+        } else {
+            const name = v ? (defaultNames[v] || v) : '其他';
+            const icon = v ? (defaultIcons[v] || '🧾') : '🧾';
+            return TextCell(icon + ' ' + name, bg);
+        }
     };
     
     const applySmartFormat = (ws, dataArr, specialRowHeight = {}, disableFilter = false) => {
@@ -9395,15 +9891,22 @@ window.closeSettlementModal = function() {
         let combinedList = [];
         data.paidList.forEach(item => combinedList.push({ type: 'paid', ...item }));
         data.shouldPayList.forEach(item => combinedList.push({ type: 'shouldPay', ...item }));
+        // 新增：個人消費項目（不影響結算 balance 計算）
+        if (data.personalList && Array.isArray(data.personalList)) {
+            data.personalList.forEach(item => combinedList.push({ type: 'personal', ...item }));
+        }
         combinedList.sort((a, b) => (a.rawDate || 0) - (b.rawDate || 0));
 
         combinedList.forEach(item => {
             if (item.type === 'paid') {
                 mPaid += item.amount;
                 ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[代墊] ${item.title}`, mBg), NumCell(item.rate, mBg), ForeignCell(item.krw, item.currency || 'KRW', mBg), TWDCell(item.amount, mBg), GreenCell(item.amount, mBg)]);
-            } else {
+            } else if (item.type === 'shouldPay') {
                 mShouldPay += item.amount;
                 ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[分攤] ${item.title}`, mBg), NumCell(item.rate, mBg), ForeignCell(item.krw, item.currency || 'KRW', mBg), TWDCell(item.amount, mBg), RedCell(-item.amount, mBg)]);
+            } else if (item.type === 'personal') {
+                // 個人消費：顯示為 [消費]，但不影響結算差額（NT$結餘欄位為 0）
+                ws2_data.push([TextCell(m, mBg), TextCell(getFullTime(item.rawDate), mBg), CatCell(item.category, mBg), TextCell(`[消費] ${item.title}`, mBg), NumCell(item.rate, mBg), ForeignCell(item.krw, item.currency || 'KRW', mBg), TWDCell(item.amount, mBg), TWDCell(0, mBg)]);
             }
         });
 
@@ -9853,8 +10356,8 @@ window.closeSettlementModal = function() {
             localStorage.setItem('korea_section_admins_v1', JSON.stringify(window.sectionAdmins));
             localStorage.setItem('korea_section_lock_states_v1', JSON.stringify(window.sectionLockStates));
             localStorage.setItem('korea_pending_changes_v1', JSON.stringify(window.pendingChanges));
-            if (typeof window.saveGlobalState === 'function' && currentUser) {
-                window.saveGlobalState({
+            if (typeof window.queueGlobalStateUpdate === 'function' && currentUser) {
+                window.queueGlobalStateUpdate({
                     sectionAdmins: window.sectionAdmins,
                     sectionLockStates: window.sectionLockStates,
                     pendingChanges: window.pendingChanges
@@ -10172,6 +10675,21 @@ window.closeSettlementModal = function() {
             return window.pendingChanges[section] || [];
         };
 
+        window.pendingReviewViewState = {
+            sectionFilter: 'all',
+            showProcessed: false
+        };
+
+        window.setPendingChangesSectionFilter = function(filter) {
+            window.pendingReviewViewState.sectionFilter = filter || 'all';
+            window.renderPendingChangeList && window.renderPendingChangeList();
+        };
+
+        window.toggleProcessedChangesVisibility = function() {
+            window.pendingReviewViewState.showProcessed = !window.pendingReviewViewState.showProcessed;
+            window.renderPendingChangeList && window.renderPendingChangeList();
+        };
+
         window.approveChange = function(section, changeId) {
             const changes = window.pendingChanges[section] || [];
             const changeIndex = changes.findIndex(c => c.id === changeId);
@@ -10231,6 +10749,9 @@ window.closeSettlementModal = function() {
             
             window.persistSectionReviewState();
             window.renderPendingChangeList && window.renderPendingChangeList();
+            if (typeof window.flushPendingGlobalState === 'function') {
+                try { window.flushPendingGlobalState(); } catch (e) { console.error('flushPendingGlobalState failed', e); }
+            }
         };
 
         window.openPendingChangesModal = function() {
@@ -10552,62 +11073,81 @@ window.closeSettlementModal = function() {
 			const progressContainer = document.getElementById('ocr-progress-container');
 			const resultsContainer = document.getElementById('ocr-results-container');
 			const previewContainer = document.getElementById('ocr-preview-container');
-			
-			if (progressContainer) progressContainer.classList.remove('hidden');
-			if (resultsContainer) resultsContainer.classList.add('hidden');
-			if (previewContainer) previewContainer.classList.add('hidden');
-			
-			// 使用 Tesseract.js 進行文字識別
-			Tesseract.recognize(ocrCurrentImage, 'chi_tra+eng')
-				.progress(message => {
-					const progress = Math.round(message.progress * 100);
-					const progressBar = document.getElementById('ocr-progress-bar');
-					const progressText = document.getElementById('ocr-progress-text');
-					
-					if (progressBar) progressBar.style.width = progress + '%';
-					if (progressText) progressText.innerText = `識別中... ${progress}%`;
-				})
-				.then(result => {
-					const text = result.data.text;
-					extractAmountsFromText(text);
-					displayOCRResults();
-				})
-				.catch(err => {
-					showMsg('識別失敗，請重試');
-					console.error(err);
-				});
-		};
-		
-		window.extractAmountsFromText = function(text) {
-			ocrRecognizedAmounts = [];
-			
-			// 匹配各種金額格式
-			const patterns = [
-				/(?:NT\$|TWD|台幣)?[\s]*(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?/g,
-				/(￥|¥|₩|฿|₫|€|\$|USD|JPY|KRW|THB|VND|EUR|HKD)[\s]*(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?/gi,
-				/(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?(?:元|圓|원|฿|₫|€|\$)/gi
-			];
-			
-			const amounts = new Set();
-			
-			for (let pattern of patterns) {
-				let match;
-				while ((match = pattern.exec(text)) !== null) {
-					let amount = match[0];
-					// 清理金額字符串
-					amount = amount.replace(/[,元圓원฿₫€$¥￥]/g, '').trim();
-					const num = parseFloat(amount);
-					if (num > 0 && num < 1000000) {
-						amounts.add(num);
-					}
-				}
-			}
-			
-			// 排序金額
-			ocrRecognizedAmounts = Array.from(amounts).sort((a, b) => b - a);
-		};
-		
-		window.displayOCRResults = function() {
+            const progressBar = document.getElementById('ocr-progress-bar');
+            const progressText = document.getElementById('ocr-progress-text');
+            
+            if (progressContainer) progressContainer.classList.remove('hidden');
+            if (resultsContainer) resultsContainer.classList.add('hidden');
+            if (previewContainer) previewContainer.classList.add('hidden');
+            if (progressBar) progressBar.style.width = '0%';
+            if (progressText) progressText.innerText = '準備識別...';
+            
+            // 使用 Tesseract.js 進行文字識別
+            const recognizePromise = Tesseract.recognize(ocrCurrentImage, 'chi_tra+eng', {
+                logger: message => {
+                    if (!message || typeof message !== 'object') return;
+                    if (message.progress !== undefined) {
+                        const progressValue = Math.round((message.progress || 0) * 100);
+                        if (progressBar) progressBar.style.width = progressValue + '%';
+                        if (progressText) progressText.innerText = `識別中... ${progressValue}%`;
+                    } else if (message.status) {
+                        if (progressText) progressText.innerText = `識別中：${message.status}`;
+                    }
+                }
+            });
+
+            if (typeof recognizePromise.progress === 'function') {
+                recognizePromise.progress(message => {
+                    const progressValue = Math.round((message.progress || 0) * 100);
+                    if (progressBar) progressBar.style.width = progressValue + '%';
+                    if (progressText) progressText.innerText = `識別中... ${progressValue}%`;
+                });
+            }
+
+            recognizePromise
+                .then(result => {
+                    const text = result.data ? result.data.text : result.text || '';
+                    extractAmountsFromText(text);
+                    displayOCRResults();
+                })
+                .catch(err => {
+                    if (progressText) progressText.innerText = '識別失敗';
+                    if (progressContainer) progressContainer.classList.remove('hidden');
+                    showMsg('識別失敗，請重試');
+                    console.error(err);
+                });
+        };
+
+        window.extractAmountsFromText = function(text) {
+            ocrRecognizedAmounts = [];
+
+            // 匹配各種金額格式
+            const patterns = [
+                /(?:NT\$|TWD|台幣)?[\s]*(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?/g,
+                /(￥|¥|₩|฿|₫|€|\$|USD|JPY|KRW|THB|VND|EUR|HKD)[\s]*(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?/gi,
+                /(\d+(?:,\d{3})*|\d+)(?:\.?\d{1,2})?(?:元|圓|원|฿|₫|€|\$)/gi
+            ];
+
+            const amounts = new Set();
+
+            for (let pattern of patterns) {
+                let match;
+                while ((match = pattern.exec(text)) !== null) {
+                    let amount = match[0];
+                    // 清理金額字符串
+                    amount = amount.replace(/[,元圓원฿₫€$¥￥]/g, '').trim();
+                    const num = parseFloat(amount);
+                    if (num > 0 && num < 1000000) {
+                        amounts.add(num);
+                    }
+                }
+            }
+
+            // 排序金額
+            ocrRecognizedAmounts = Array.from(amounts).sort((a, b) => b - a);
+        };
+
+        window.displayOCRResults = function() {
 			const progressContainer = document.getElementById('ocr-progress-container');
 			const resultsContainer = document.getElementById('ocr-results-container');
 			const resultsList = document.getElementById('ocr-results-list');
@@ -10986,12 +11526,12 @@ window.closeSettlementModal = function() {
             if (sourceCards.length === 0 && Array.isArray(defaultPlanCards) && defaultPlanCards.length > 0) {
                 sourceCards = JSON.parse(JSON.stringify(defaultPlanCards));
                 planCardsData = sourceCards;
-                localStorage.setItem('korea_plan_v6', JSON.stringify(planCardsData));
-                if (typeof window.saveGlobalState === 'function') {
-                    window.saveGlobalState({ planCardsStr: JSON.stringify(planCardsData) });
+                planCardsLastModified = Date.now();
+                persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
+                if (typeof window.queueGlobalStateUpdate === 'function') {
+                    window.queueGlobalStateUpdate({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified });
                 }
             }
-
             let filteredCards = sourceCards;
 			
             const navSource = Array.isArray(customNavs) ? customNavs : [];
@@ -11014,7 +11554,34 @@ window.closeSettlementModal = function() {
             }
 			
             try {
-                container.innerHTML = window.renderCardsGroupedBySectionTitles('plan', filteredCards);
+                const newHtml = window.renderCardsGroupedBySectionTitles('plan', filteredCards);
+                if (container.innerHTML === newHtml) {
+                    // identical, skip
+                } else {
+                    // Attempt keyed diff: update only changed card nodes when order unchanged
+                    const temp = document.createElement('div');
+                    temp.innerHTML = newHtml;
+                    const newCards = Array.from(temp.querySelectorAll('[data-card-id]'));
+                    const existingCards = Array.from(container.querySelectorAll('[data-card-id]'));
+                    const newIds = newCards.map(n => n.getAttribute('data-card-id'));
+                    const existingIds = existingCards.map(n => n.getAttribute('data-card-id'));
+
+                    const sequencesEqual = newIds.length === existingIds.length && newIds.every((id, i) => id === existingIds[i]);
+                    if (sequencesEqual) {
+                        // update attributes and innerHTML for changed nodes only
+                        newCards.forEach(n => {
+                            const id = n.getAttribute('data-card-id');
+                            const ex = container.querySelector('[data-card-id="' + id + '"]');
+                            if (!ex) return;
+                            // sync attributes
+                            Array.from(n.attributes).forEach(attr => ex.setAttribute(attr.name, attr.value));
+                            if (ex.innerHTML !== n.innerHTML) ex.innerHTML = n.innerHTML;
+                        });
+                    } else {
+                        // fallback: replace whole container
+                        container.innerHTML = newHtml;
+                    }
+                }
             } catch (err) {
                 console.error('renderPlanWithFilter error:', err);
                 container.innerHTML = `
@@ -11023,6 +11590,37 @@ window.closeSettlementModal = function() {
                     </div>`;
             }
 		};
+
+        // --- 調試輔助：模擬雲端覆寫行程資料（在 console 呼叫） ---
+        window.simulateCloudReplacePlan = function(jsonStr) {
+            try {
+                const parsed = safeParseJSON(jsonStr, null);
+                if (!Array.isArray(parsed)) {
+                    console.warn('simulateCloudReplacePlan: 參數需為 JSON array 字串');
+                    return;
+                }
+                planCardsData = parsed;
+                planCardsLastModified = Date.now();
+                persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
+                try { syncCustomNavsWithPlanCards(); } catch(e) { console.error('syncCustomNavsWithPlanCards failed', e); }
+                renderCards('plan');
+                console.log('simulateCloudReplacePlan: applied, count=', planCardsData.length);
+            } catch(e) {
+                console.error('simulateCloudReplacePlan failed', e);
+            }
+        };
+
+        // --- 調試輔助：建立一筆 sample 卡片並儲存（在 console 呼叫） ---
+        window.smokeTestPlanUpdate = function() {
+            try {
+                const id = 'plan_test_' + Date.now();
+                const sample = { id, title: '測試卡 ' + new Date().toLocaleTimeString('zh-TW'), sectionTitleId: (customSectionTitles.plan && customSectionTitles.plan[0] && customSectionTitles.plan[0].id) || '', blocks: [{ type: 'text', text: '這是一筆測試卡' }] };
+                planCardsData = planCardsData || [];
+                planCardsData.unshift(sample);
+                saveCardsToStorage('plan');
+                console.log('smokeTestPlanUpdate: added', id);
+            } catch(e) { console.error('smokeTestPlanUpdate failed', e); }
+        };
 		
 		// 按成員篩選記帳紀錄
 		window.filterExpensesByMember = function(memberName) {
@@ -11584,6 +12182,7 @@ window.closeSettlementModal = function() {
 
             const snapshot = window.calculateSettlementSnapshot();
             window.currentSettlementData = snapshot.balances;
+            window.currentPersonalExpenses = snapshot.personalExpenses || {};
             window.currentTransfers = { global: snapshot.globalTransfers, p2p: snapshot.p2pTransfers };
             if (summaryEl) {
                 summaryEl.innerHTML = window.renderSettlementSummaryCards(snapshot, 'inline');
@@ -14144,18 +14743,50 @@ window.closeSettlementModal = function() {
 
         window.generateChangeSummaryText = function(section, change) {
             if (!change || !change.data) return '無詳細資訊';
-            const d = change.data;
-            if (d.cardId && d.value) return `卡片ID：${d.cardId}，標題：${window.formatChangeValue(d.value)}`;
-            if (d.cardId) return `卡片ID：${d.cardId}`;
-            if (d.value) return `標題：${window.formatChangeValue(d.value)}`;
-            if (d.content && typeof d.content !== 'object') return `內容：${d.content}`;
-            return '有變更內容，請點擊查看詳細資訊';
+            const d = change.data || {};
+            const format = window.formatChangeValue;
+            switch (change.type) {
+                case 'card_edit': {
+                    if (d.cardId) {
+                        if (d.oldValue !== undefined || d.newValue !== undefined) {
+                            return `編輯卡片：${d.cardId}，${format(d.oldValue)} → ${format(d.newValue || d.content)}`;
+                        }
+                        if (d.content) {
+                            const contentText = d.content.title || d.content.name || d.content.content || d.content;
+                            return `編輯卡片：${d.cardId}，新內容：${format(contentText)}`;
+                        }
+                        return `編輯卡片：${d.cardId}`;
+                    }
+                    return '編輯卡片內容';
+                }
+                case 'card_move':
+                    return `卡片位置調整：${d.cardId || ''} 從 ${format(d.fromIndex)} 至 ${format(d.toIndex)}`;
+                case 'card_delete':
+                    return d.cardId ? `刪除卡片：${d.cardId}` : '刪除卡片';
+                case 'title_edit':
+                    if (d.oldValue !== undefined || d.newValue !== undefined) {
+                        return `標題變更：${format(d.oldValue)} → ${format(d.newValue || d.value)}`;
+                    }
+                    return `標題變更：${format(d.value || d.newValue || '')}`;
+                case 'members_edit':
+                    return `成員列表變更：${Array.isArray(d.travelMembers) ? d.travelMembers.join('、') : format(d.travelMembers)}`;
+                case 'memo_update':
+                    return '備忘錄變更';
+                default:
+                    if (d.oldValue !== undefined || d.newValue !== undefined) {
+                        return `變更內容：${format(d.oldValue)} → ${format(d.newValue)}`;
+                    }
+                    if (d.value) return `變更內容：${format(d.value)}`;
+                    if (typeof d.content === 'string') return `內容：${format(d.content)}`;
+                    return '有變更內容，請點擊查看詳細資訊';
+            }
         };
 
         window.renderPendingChangeList = function() {
             const pendingContainer = document.getElementById('pending-changes-list');
             const processedContainer = document.getElementById('processed-changes-list');
-            if (!pendingContainer || !processedContainer) return;
+            const filterBar = document.getElementById('pending-changes-filter-bar');
+            if (!pendingContainer || !processedContainer || !filterBar) return;
             const allSections = ['plan', 'flight', 'info', 'lists', 'wallet'];
             const sectionLabels = {
                 plan: '每日行程',
@@ -14164,20 +14795,46 @@ window.closeSettlementModal = function() {
                 lists: '備忘錄',
                 wallet: '記帳'
             };
+            const sectionFilter = window.pendingReviewViewState.sectionFilter || 'all';
+            const showProcessed = window.pendingReviewViewState.showProcessed;
             const allItems = allSections.flatMap(section => {
                 return window.getPendingChanges(section).map(change => ({ section, sectionLabel: sectionLabels[section] || section, change }));
             });
-            const pendingItems = allItems.filter(item => item.change.status === 'pending');
-            const processedItems = allItems.filter(item => item.change.status !== 'pending');
+            const filteredItems = sectionFilter === 'all'
+                ? allItems
+                : allItems.filter(item => item.section === sectionFilter);
+            const pendingItems = filteredItems.filter(item => item.change.status === 'pending');
+            const processedItems = filteredItems.filter(item => item.change.status !== 'pending');
+
+            const renderSectionButton = (filter, label) => {
+                const active = sectionFilter === filter;
+                return `<button type="button" onclick="window.setPendingChangesSectionFilter('${filter}')" class="px-2 py-1 rounded-full text-[12px] font-bold ${active ? 'bg-[#0369a1] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${label}</button>`;
+            };
+
+            filterBar.innerHTML = `
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-[12px] font-bold text-gray-700">分區篩選：</span>
+                    ${renderSectionButton('all', '全部')}
+                    ${renderSectionButton('plan', '行程')}
+                    ${renderSectionButton('flight', '航班')}
+                    ${renderSectionButton('info', '資訊')}
+                    ${renderSectionButton('lists', '備忘錄')}
+                    ${renderSectionButton('wallet', '記帳')}
+                </div>
+                <div class="flex items-center gap-2 text-[12px]">
+                    <button type="button" onclick="window.toggleProcessedChangesVisibility()" class="px-3 py-1 rounded-full bg-[#f3f4f6] text-gray-700 hover:bg-gray-200 font-bold">${showProcessed ? '隱藏已處理項目' : '顯示已處理項目'}</button>
+                </div>
+            `;
 
             const renderCard = (item, isProcessed) => {
                 const change = item.change;
                 const statusName = change.status === 'approved' ? '已批准' : change.status === 'applied' ? '已套用' : change.status === 'rejected' ? '已拒絕' : '待審核';
-                const statusBadge = `<span class="text-[10px] font-bold px-2 py-1 rounded-full ${change.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${statusName}</span>`;
+                const statusClass = change.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700';
+                const statusBadge = `<span class="text-[10px] font-bold px-2 py-1 rounded-full ${statusClass}">${statusName}</span>`;
                 const adminControl = !isProcessed && window.isAdminOfSection(item.section) ? `
                     <div class="mt-2 flex gap-2">
-                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#16a34a] text-white hover:bg-[#15803d]" onclick="window.handleApproveChange('${item.section}','${change.id}')">批准</button>
-                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c]" onclick="window.handleRejectChange('${item.section}','${change.id}')">拒絕</button>
+                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#16a34a] text-white hover:bg-[#15803d]" onclick="event.stopPropagation(); window.handleApproveChange('${item.section}','${change.id}')">批准</button>
+                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c]" onclick="event.stopPropagation(); window.handleRejectChange('${item.section}','${change.id}')">拒絕</button>
                     </div>
                 ` : '';
                 const detailText = window.generateChangeSummaryText(item.section, change);
@@ -14200,7 +14857,7 @@ window.closeSettlementModal = function() {
             };
 
             pendingContainer.innerHTML = pendingItems.length ? pendingItems.map(item => renderCard(item, false)).join('') : '<div class="text-sm text-gray-600">目前沒有待審核的變更。</div>';
-            processedContainer.innerHTML = processedItems.length ? processedItems.map(item => renderCard(item, true)).join('') : '<div class="text-sm text-gray-600">目前尚無已處理紀錄。</div>';
+            processedContainer.innerHTML = showProcessed ? (processedItems.length ? processedItems.map(item => renderCard(item, true)).join('') : '<div class="text-sm text-gray-600">目前尚無已處理紀錄。</div>') : '<div class="text-sm text-gray-500">已隱藏，點選右上按鈕顯示。</div>';
         };
 
         window.generateChangeDetailHtml = function(section, change) {
@@ -14215,7 +14872,9 @@ window.closeSettlementModal = function() {
             }
             if (change.status === 'rejected') {
                 rows.push(`<div class="text-xs text-red-700 mb-2">拒絕者：${window.formatChangeValue(change.rejectedBy || '')}` + (change.rejectedAt ? `，時間：${new Date(change.rejectedAt).toLocaleString()}` : '') + `</div>`);
-                if (change.rejectReason) rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
+                if (change.rejectReason) {
+                    rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
+                }
             }
             if (d.cardId) rows.push(`<div class="text-xs text-gray-600 mb-2">卡片ID：${window.formatChangeValue(d.cardId)}</div>`);
             if (d.section) rows.push(`<div class="text-xs text-gray-600 mb-2">分區：${window.formatChangeValue(d.section)}</div>`);
@@ -14223,12 +14882,26 @@ window.closeSettlementModal = function() {
 
             const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
             if (change.type === 'card_edit') {
-                if (currentCard) {
-                    rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">變更內容（改前 / 改後）</div>');
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(currentCard.title || currentCard.name || currentCard.content || JSON.stringify(currentCard))}</div>`);
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(d.content && (d.content.title || d.content.name || d.content.content) ? (d.content.title || d.content.name || d.content.content) : d.content)}</div>`);
+                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">變更內容</div>');
+                if (d.oldValue !== undefined || d.newValue !== undefined) {
+                    const oldV = d.oldValue !== undefined ? d.oldValue : '';
+                    const newV = d.newValue !== undefined ? (d.newValue || d.content) : (d.content || '');
+                    if (String(oldV).length > 60 || String(newV).length > 60) {
+                        rows.push(window.computeTextDiff(oldV, newV));
+                    } else {
+                        rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(oldV)}</div>`);
+                        rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(newV)}</div>`);
+                    }
+                } else if (currentCard && d.content) {
+                    const before = currentCard.title || currentCard.name || currentCard.content || JSON.stringify(currentCard);
+                    const after = d.content.title || d.content.name || d.content.content || d.content;
+                    if (String(before).length > 60 || String(after).length > 60) {
+                        rows.push(window.computeTextDiff(before, after));
+                    } else {
+                        rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(before)}</div>`);
+                        rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(after)}</div>`);
+                    }
                 } else {
-                    rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">變更內容</div>');
                     rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.content)}</div>`);
                 }
             } else if (change.type === 'card_move') {
@@ -14247,10 +14920,19 @@ window.closeSettlementModal = function() {
                 }
             } else if (change.type === 'members_edit') {
                 rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">成員列表變更</div>');
-                rows.push(`<div class="text-xs text-gray-600">新成員：${window.formatChangeValue(d.travelMembers)}</div>`);
+                if (d.oldMembers !== undefined || d.newMembers !== undefined) {
+                    rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldMembers)}</div>`);
+                    rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newMembers || d.travelMembers)}</div>`);
+                } else {
+                    rows.push(`<div class="text-xs text-gray-600">新成員：${window.formatChangeValue(d.travelMembers)}</div>`);
+                }
             } else if (change.type === 'memo_update') {
                 rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">備忘錄變更</div>');
-                rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.memoList)}</div>`);
+                if (typeof d.memoList === 'string') {
+                    rows.push(window.computeTextDiff('', d.memoList));
+                } else {
+                    rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.memoList)}</div>`);
+                }
             } else {
                 if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
                 if (d.newValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newValue)}</div>`);
@@ -14276,8 +14958,50 @@ window.closeSettlementModal = function() {
             const modal = document.getElementById('pending-change-detail-modal'); if (!modal) return; modal.classList.add('hidden'); modal.classList.remove('flex');
         };
 
+        window.generateExpenseDetailHtml = function(expense) {
+            if (!expense) return '<div class="text-sm text-gray-500">找不到該筆消費。</div>';
+            const curSym = currencySymbols[expense.currency || 'KRW'] || (expense.currency || 'KRW');
+            const splitMembers = Array.isArray(expense.splitMembers) ? expense.splitMembers : [];
+            return `
+                <div class="space-y-3 text-sm text-gray-700">
+                    <div><span class="font-bold">消費名稱：</span>${window.escapeHtml(expense.title || '未命名')}</div>
+                    <div><span class="font-bold">時間：</span>${window.escapeHtml(expense.time || '')}</div>
+                    <div><span class="font-bold">付款人：</span>${window.escapeHtml(expense.payer || '未知')}</div>
+                    <div><span class="font-bold">幣別：</span>${window.escapeHtml(curSym)}</div>
+                    <div><span class="font-bold">外幣金額：</span>${window.escapeHtml((expense.krw || 0).toLocaleString())}</div>
+                    <div><span class="font-bold">台幣金額：</span>${window.escapeHtml((expense.twd || 0).toLocaleString())}</div>
+                    <div><span class="font-bold">分類：</span>${window.escapeHtml(expense.category || '未分類')}</div>
+                    <div><span class="font-bold">分攤成員：</span>${splitMembers.length ? window.escapeHtml(splitMembers[0]) : '無'}</div>
+                    ${splitMembers.length > 1 ? `<div class="text-xs text-gray-500">共 ${splitMembers.length} 人分攤，詳情如下：</div>` : ''}
+                    ${splitMembers.length > 1 ? `<div class="px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#bfdbfe] text-[#0f172a]">${window.escapeHtml(splitMembers.join('、'))}</div>` : ''}
+                </div>
+            `;
+        };
+
+        window.openExpenseDetail = function(expId) {
+            const expense = expenses.find(ex => ex.id === expId);
+            const modal = document.getElementById('expense-detail-modal');
+            const content = document.getElementById('expense-detail-content');
+            if (!modal || !content) return;
+            content.innerHTML = window.generateExpenseDetailHtml(expense);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeExpenseDetailModal = function() {
+            const modal = document.getElementById('expense-detail-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
         window.openUsernamePromptModal = function() {
-            const m = document.getElementById('username-prompt-modal'); const input = document.getElementById('username-prompt-input'); if (!m) return; m.classList.remove('hidden'); m.classList.add('flex'); setTimeout(() => { if (input) input.focus(); }, 80);
+            const m = document.getElementById('username-prompt-modal');
+            const input = document.getElementById('username-prompt-input');
+            if (!m) return;
+            if (input) input.value = window.currentUserName || '';
+            m.classList.remove('hidden'); m.classList.add('flex');
+            setTimeout(() => { if (input) input.focus(); }, 80);
         };
 
         window.closeUsernamePromptModal = function() { const m = document.getElementById('username-prompt-modal'); if (!m) return; m.classList.add('hidden'); m.classList.remove('flex'); };
@@ -14287,14 +15011,24 @@ window.closeSettlementModal = function() {
             localStorage.setItem('korea_current_user', v); window.currentUserName = v; window.renderUserIdentitySettings && window.renderUserIdentitySettings(); closeUsernamePromptModal(); showMsg && showMsg('用戶名稱已儲存：' + v);
         };
 
+        const ensureUsernamePrompt = function() {
+            try {
+                window.currentUserName = window.currentUserName || localStorage.getItem('korea_current_user') || '';
+                if (!window.currentUserName) openUsernamePromptModal();
+            } catch (e) { console.warn(e); }
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                try {
-                    window.currentUserName = window.currentUserName || localStorage.getItem('korea_current_user') || '';
-                    if (!window.currentUserName) openUsernamePromptModal();
-                } catch (e) { console.warn(e); }
-            }, 250);
+            setTimeout(ensureUsernamePrompt, 250);
         });
+
+        window.addEventListener('load', function() {
+            setTimeout(ensureUsernamePrompt, 300);
+        });
+
+        if (document.readyState !== 'loading') {
+            setTimeout(ensureUsernamePrompt, 120);
+        }
     })();
     </script>
 

@@ -14399,31 +14399,42 @@ window.closeSettlementModal = function() {
             return String(value);
         };
 
-        window.generateChangeSummaryText = function(section, change) {
-            if (!change || !change.data) return '無詳細資訊';
+		window.generateChangeSummaryText = function(section, change) {
+            if (!change) return '無變更說明';
             const d = change.data || {};
-            switch (change.type) {
-                case 'card_edit':
-                    return d.cardId ? `編輯卡片：${d.cardId}${d.oldValue !== undefined || d.newValue !== undefined ? `，${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue || d.content)}` : d.content ? `，新內容：${window.formatChangeValue(d.content.title || d.content.name || d.content.content || d.content)}` : ''}` : '編輯卡片內容';
-                case 'card_move':
-                    return `卡片位置調整：${d.cardId || ''} 從 ${window.formatChangeValue(d.fromIndex)} 至 ${window.formatChangeValue(d.toIndex)}`;
-                case 'card_delete':
-                    return d.cardId ? `刪除卡片：${d.cardId}` : '刪除卡片';
-                case 'title_edit':
-                    if (d.oldValue !== undefined || d.newValue !== undefined) return `標題變更：${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue || d.value)}`;
-                    return `標題變更：${window.formatChangeValue(d.value || d.newValue || '')}`;
-                case 'members_edit':
-                    return `成員列表變更：${Array.isArray(d.travelMembers) ? d.travelMembers.join('、') : window.formatChangeValue(d.travelMembers)}`;
-                case 'memo_update':
-                    return `備忘錄變更`;
-                default:
-                    if (d.oldValue !== undefined || d.newValue !== undefined) return `變更內容：${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue)}`;
-                    if (d.value) return `變更內容：${window.formatChangeValue(d.value)}`;
-                    if (typeof d.content === 'string') return `內容：${window.formatChangeValue(d.content)}`;
-                    return '有變更內容，請點擊查看詳細資訊';
+            if (change.type === 'card_add') return `➕ 新增卡片：${d.title || d.name || d.value || '未命名'}`;
+            if (change.type === 'card_delete') return `🗑️ 刪除卡片：${d.title || d.name || d.value || '未命名'}`;
+            if (change.type === 'card_move') return `🔄 調整卡片排序位置`;
+            if (change.type === 'title_edit') return `✏️ 變更分區標題`;
+            if (change.type === 'members_edit') return `👥 變更出遊成員名單`;
+            if (change.type === 'memo_update') return `📝 更新備忘錄清單`;
+            
+            if (change.type === 'card_edit') {
+                // 智慧判斷究竟是改了什麼核心項目
+                let fName = d.field || '';
+                if (d.content && typeof d.content === 'object' && d.content.field) {
+                    fName = d.content.field;
+                }
+                
+                const fieldTxtMap = {
+                    title: '卡片標題', name: '卡片名稱', time: '行程時間',
+                    desc: '內文描述', note: '備註內容', content: '內容文字', color: '卡片外觀顏色'
+                };
+                
+                if (fieldTxtMap[fName]) {
+                    return `✏️ 修改卡片：變更了【${fieldTxtMap[fName]}】`;
+                }
+                
+                // 如果是整張卡片覆蓋(例如改顏色時觸發的結構)，判斷是不是動到顏色
+                if (d.content && typeof d.content === 'object' && d.content.colorIndex !== undefined) {
+                    return `🎨 修改卡片：變更了卡片外觀顏色或內容`;
+                }
+                
+                return `✏️ 修改卡片內容`;
             }
+            return `${change.type || '未知變更'}`;
         };
-
+		
         window.renderPendingChangeList = function() {
             const pendingContainer = document.getElementById('pending-changes-list');
             const processedContainer = document.getElementById('processed-changes-list');
@@ -14560,52 +14571,117 @@ window.closeSettlementModal = function() {
             rows.push('<div class="border-t border-gray-100 my-2"></div>');
             rows.push('<div class="text-sm font-black text-gray-800 mb-2"><i class="fas fa-exchange-alt mr-1 text-blue-500"></i>變更對比明細</div>');
 
-            // 2. 核心比對邏輯：根據最新的解構真相進行對比
+            // 2. 核心終極對比盾牌
             if (change.type === 'card_edit' || change.type === 'title_edit' || d.content) {
-                // 先嘗試從外層或 d.content 中提取舊值與新值
-                let oldVal = d.oldValue;
-                let newVal = d.newValue || d.value;
-                let fieldName = d.field || 'content'; // 預設為內容變更
+                // 先找出這張卡片目前的樣子作為舊值保底
+                const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
+                
+                // 定義我們要抓取出來對比的人類文字欄位
+                let oldTitle = currentCard ? (currentCard.title || currentCard.name || currentCard.content || '') : '';
+                let oldTime = currentCard ? (currentCard.time || '') : '';
+                let oldDesc = currentCard ? (currentCard.desc || currentCard.note || (Array.isArray(currentCard.items) ? currentCard.items.join(', ') : '')) : '';
+                let oldColor = currentCard ? String(currentCard.colorIndex !== undefined ? currentCard.colorIndex : (currentCard.color || '預設')) : '預設';
 
-                // 關鍵核心：如果真正的變更紀錄塞在 d.content 物件裡面
-                if (d.content && typeof d.content === 'object') {
-                    if (d.content.oldValue !== undefined) oldVal = d.content.oldValue;
-                    if (d.content.newValue !== undefined) newVal = d.content.newValue;
-                    if (d.content.field) fieldName = d.content.field;
+                let newTitle = oldTitle;
+                let newTime = oldTime;
+                let newDesc = oldDesc;
+                let newColor = oldColor;
+
+                // --- 狀況解析：開始拆解後台丟過來的資料到底是哪種變形 ---
+                
+                // 情境 A：丟過來的是細修小紀錄物件 {"field":"...", "oldValue":"...", "newValue":"..."}
+                let targetField = d.field || '';
+                let subOld = d.oldValue;
+                let subNew = d.newValue;
+
+                if (d.content && typeof d.content === 'object' && d.content.oldValue !== undefined) {
+                    subOld = d.content.oldValue;
+                    subNew = d.content.newValue;
+                    if (d.content.field) targetField = d.content.field;
                 }
 
-                // 將欄位英文代碼翻譯成看得懂的中文
-                const fieldMap = {
-                    title: '📌 卡片標題變更',
-                    name: '📌 卡片名稱變更',
-                    time: '⏰ 行程時間變更',
-                    desc: '📝 內文描述變更',
-                    note: '📝 備註內容變更',
-                    content: '📝 內容文字變更'
-                };
-                const displayFieldTitle = fieldMap[fieldName] || '✏️ 卡片項目變更';
+                if (targetField && subOld !== undefined && subNew !== undefined) {
+                    // 如果有明確指定單一欄位修改
+                    if (targetField === 'title' || targetField === 'name') newTitle = subNew;
+                    if (targetField === 'time') newTime = subNew;
+                    if (targetField === 'desc' || targetField === 'note' || targetField === 'content') newDesc = subNew;
+                    if (targetField === 'color') newColor = String(subNew);
+                } 
+                // 情境 B：丟過來的是整張卡片的完整複製品物件 {id, title, time, desc, colorIndex...}
+                else if (d.content && typeof d.content === 'object') {
+                    const c = d.content;
+                    if (c.title !== undefined || c.name !== undefined || c.content !== undefined) {
+                        newTitle = c.title || c.name || c.content || '';
+                    }
+                    if (c.time !== undefined) newTime = c.time || '';
+                    if (c.desc !== undefined || c.note !== undefined || c.items !== undefined) {
+                        newDesc = c.desc || c.note || (Array.isArray(c.items) ? c.items.join(', ') : '');
+                    }
+                    if (c.colorIndex !== undefined) newColor = String(c.colorIndex);
+                } 
+                // 情境 C：保底如果丟過來只是純字串
+                else if (d.content && typeof d.content === 'string') {
+                    newDesc = d.content;
+                }
 
-                // 強制將新舊值轉換成純字串，避免印出 [object Object]
-                if (oldVal && typeof oldVal === 'object') oldVal = oldVal.title || oldVal.name || oldVal.content || JSON.stringify(oldVal);
-                if (newVal && typeof newVal === 'object') newVal = newVal.title || newVal.name || newVal.content || JSON.stringify(newVal);
+                // 最後清理：確保所有提取出來的比對值都是純字串
+                oldTitle = String(oldTitle).trim(); newTitle = String(newTitle).trim();
+                oldTime = String(oldTime).trim(); newTime = String(newTime).trim();
+                oldDesc = String(oldDesc).trim(); newDesc = String(newDesc).trim();
+                oldColor = String(oldColor).trim(); newColor = String(newColor).trim();
 
-                oldVal = String(oldVal !== undefined && oldVal !== null ? oldVal : '').trim();
-                newVal = String(newVal !== undefined && newVal !== null ? newVal : '').trim();
+                // 開始繪製極簡無雜訊的 HTML 對比盒
+                let diffContentHtml = '<div class="space-y-2.5">';
+                let hasAnyChange = false;
 
-                let diffContentHtml = '<div class="space-y-2">';
-                
-                if (oldVal !== newVal) {
+                // 1. 標題對比
+                if (oldTitle !== newTitle) {
+                    hasAnyChange = true;
                     diffContentHtml += `
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="text-xs font-bold text-gray-500 mb-1">${displayFieldTitle}：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded break-all">改前：${oldVal || '（空）'}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1 break-all">改後：${newVal || '（空）'}</div>
+                            <div class="text-xs font-black text-gray-500 mb-1">📌 卡片標題變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded">改前：${oldTitle || '（空）'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1">改後：${newTitle || '（空）'}</div>
                         </div>`;
-                } else {
-                    // 如果解析出來竟然一樣（保底防呆）
+                }
+
+                // 2. 時間對比
+                if (oldTime !== newTime) {
+                    hasAnyChange = true;
                     diffContentHtml += `
-                        <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs font-bold">
-                            卡片內容或系統參數微調更新
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-black text-gray-500 mb-1">⏰ 行程時間變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded">改前：${oldTime || '未設時間'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1">改後：${newTime || '未設時間'}</div>
+                        </div>`;
+                }
+
+                // 3. 內文對比
+                if (oldDesc !== newDesc) {
+                    hasAnyChange = true;
+                    diffContentHtml += `
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-black text-gray-500 mb-1">📝 內文描述/備註變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded break-all">改前：${oldDesc || '（空）'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1 break-all">改後：${newDesc || '（空）'}</div>
+                        </div>`;
+                }
+
+                // 4. 顏色對比
+                if (oldColor !== newColor) {
+                    hasAnyChange = true;
+                    diffContentHtml += `
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-black text-gray-500 mb-1">🎨 卡片樣式背景顏色調整：</div>
+                            <div class="text-gray-600 text-xs bg-gray-100 px-1.5 py-0.5 rounded">管理員報告：此卡片更換了背景色彩主題（代號 ${oldColor} → ${newColor}）</div>
+                        </div>`;
+                }
+
+                // 5. 保底（如果數據有變，但都不是文字顏色變更）
+                if (!hasAnyChange) {
+                    diffContentHtml += `
+                        <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs font-bold border border-blue-100">
+                            ⚙️ 卡片系統參數或勾選狀態微調（文字與時間皆無變動）
                         </div>`;
                 }
 

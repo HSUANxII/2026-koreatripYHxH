@@ -14560,38 +14560,58 @@ window.closeSettlementModal = function() {
             rows.push('<div class="border-t border-gray-100 my-2"></div>');
             rows.push('<div class="text-sm font-black text-gray-800 mb-2"><i class="fas fa-exchange-alt mr-1 text-blue-500"></i>變更對比明細</div>');
 
-            // 2. 核心比對邏輯：過濾雜訊，只抓重點欄位
+            // 2. 核心比對邏輯：將物件徹底拆解，只抽離純文字
             if (change.type === 'card_edit' || change.type === 'title_edit' || d.content) {
                 const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
                 
-                // 智慧型新舊重點欄位提取器
-                let oldTitle = d.oldValue || (currentCard ? (currentCard.title || currentCard.name || currentCard.content) : '');
-                let newTitle = d.newValue || d.value || (d.content ? (d.content.title || d.content.name || d.content.content) : '');
-                
+                // --- 智慧提取【改前】純文字 ---
+                let oldTitle = d.oldValue;
+                if (oldTitle === undefined && currentCard) {
+                    oldTitle = currentCard.title || currentCard.name || currentCard.content || '';
+                }
                 let oldDesc = currentCard ? (currentCard.desc || currentCard.note || (Array.isArray(currentCard.items) ? currentCard.items.join(', ') : '')) : '';
-                let newDesc = d.content ? (d.content.desc || d.content.note || (Array.isArray(d.content.items) ? d.content.items.join(', ') : '')) : '';
-
                 let oldTime = currentCard ? (currentCard.time || '') : '';
-                let newTime = d.content ? (d.content.time || '') : '';
 
-                // 如果標題是一整個物件，進行防錯解構
+                // --- 智慧提取【改後】純文字 (防止整個物件印出) ---
+                let newTitle = d.newValue || d.value;
+                let newDesc = '';
+                let newTime = '';
+
+                if (d.content && typeof d.content === 'object') {
+                    // 如果 d.content 是一個大物件，我們只精準抓出裡面跟內容有關的欄位！
+                    if (newTitle === undefined) newTitle = d.content.title || d.content.name || d.content.content;
+                    newDesc = d.content.desc || d.content.note || (Array.isArray(d.content.items) ? d.content.items.join(', ') : '');
+                    newTime = d.content.time || '';
+                } else if (d.content && typeof d.content === 'string') {
+                    if (newTitle === undefined) newTitle = d.content;
+                }
+
+                // 如果提取出來的標題不小心還是物件，做最後一層純文字防線
                 if (typeof oldTitle === 'object') oldTitle = oldTitle.title || oldTitle.name || oldTitle.content || '';
                 if (typeof newTitle === 'object') newTitle = newTitle.title || newTitle.name || newTitle.content || '';
+
+                // 強制轉成字串，修剪空白
+                oldTitle = String(oldTitle || '').trim();
+                newTitle = String(newTitle || '').trim();
+                oldDesc = String(oldDesc || '').trim();
+                newDesc = String(newDesc || '').trim();
+                oldTime = String(oldTime || '').trim();
+                newTime = String(newTime || '').trim();
 
                 // 產生極簡對比 HTML
                 let diffContentHtml = '<div class="space-y-2">';
                 
-                // 標題有變，才顯示標題
-                if (oldTitle !== newTitle) {
+                // 1. 標題比對
+                if (oldTitle !== newTitle && (oldTitle || newTitle)) {
                     diffContentHtml += `
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
                             <div class="text-xs font-bold text-gray-500 mb-1">📌 卡片標題變更：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded">改前：${window.formatChangeValue(oldTitle || '無')}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1">改後：${window.formatChangeValue(newTitle || '無')}</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded">改前：${oldTitle || '無'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1">改後：${newTitle || '無'}</div>
                         </div>`;
                 }
-                // 時間有變，才顯示時間
-                if (oldTime !== newTime) {
+                // 2. 時間比對
+                if (oldTime !== newTime && (oldTime || newTime)) {
                     diffContentHtml += `
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
                             <div class="text-xs font-bold text-gray-500 mb-1">⏰ 行程時間變更：</div>
@@ -14599,21 +14619,21 @@ window.closeSettlementModal = function() {
                             <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1">改後：${newTime || '未設時間'}</div>
                         </div>`;
                 }
-                // 內文或備註有變，才顯示內文
+                // 3. 內文或備註比對
                 if (oldDesc !== newDesc && (oldDesc || newDesc)) {
                     diffContentHtml += `
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
                             <div class="text-xs font-bold text-gray-500 mb-1">📝 內文描述/備註變更：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded break-all">改前：${window.formatChangeValue(oldDesc || '空')}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1 break-all">改後：${window.formatChangeValue(newDesc || '空')}</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded break-all">改前：${oldDesc || '空'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1 break-all">改後：${newDesc || '空'}</div>
                         </div>`;
                 }
 
-                // 如果上面三個都剛好一樣，做為保底防呆顯示
+                // 4. 防呆保底（如果只改了顏色等系統預設值，完全沒改文字）
                 if (oldTitle === newTitle && oldTime === newTime && oldDesc === newDesc) {
                     diffContentHtml += `
                         <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs font-bold">
-                            卡片標題/內容微調更新 (系統數值或顏色變更)
+                            卡片外觀/系統參數微調更新 (文字與時間皆無變更)
                         </div>`;
                 }
 
@@ -14625,9 +14645,8 @@ window.closeSettlementModal = function() {
             } else if (change.type === 'card_move') {
                 rows.push(`<div class="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-xs font-bold">🔄 調整位置：從第 ${Number(d.fromIndex)+1} 項移動到第 ${Number(d.toIndex)+1} 項。</div>`);
             } else {
-                // 其他類型保底顯示
                 if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-red-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
-                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-emerald-700 font-bold">改後：${window.formatChangeValue(d.newValue || d.value || d.content)}</div>`);
+                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-emerald-700 font-bold">改後：${window.formatChangeValue(d.newValue || d.value)}</div>`);
             }
 
             return rows.map(r => `<div>${r}</div>`).join('');

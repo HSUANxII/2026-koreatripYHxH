@@ -14556,44 +14556,38 @@ window.closeSettlementModal = function() {
             const rows = [];
             const statusMap = { pending: '待審核', approved: '已核准', applied: '已套用', rejected: '已拒絕' };
             
-            // 1. 基本資訊列
+            // 1. 基本資訊列 (狀態與時間等)
             rows.push(`<div class="text-sm font-bold text-gray-900 mb-1">狀態：<span class="text-blue-600">${statusMap[change.status] || change.status || '未知'}</span></div>`);
-            rows.push(`<div class="text-xs text-gray-500 mb-3">提交者：${window.formatChangeValue(change.changedBy || '未知')}` + (change.timestamp ? `，時間：${new Date(change.timestamp).toLocaleString()}` : '') + `</div>`);
+            rows.push(`<div class="text-xs text-gray-500 mb-3">提交者：${change.changedBy || '未知'}` + (change.timestamp ? `，時間：${new Date(change.timestamp).toLocaleString()}` : '') + `</div>`);
             
             if (change.status === 'approved' || change.status === 'applied') {
-                rows.push(`<div class="text-xs text-green-700 mb-2">批准者：${window.formatChangeValue(change.approvedBy || '')}` + (change.approvedAt ? `，時間：${new Date(change.approvedAt).toLocaleString()}` : '') + `</div>`);
+                rows.push(`<div class="text-xs text-green-700 mb-2">批准者：${change.approvedBy || ''}` + (change.approvedAt ? `，時間：${new Date(change.approvedAt).toLocaleString()}` : '') + `</div>`);
             }
             if (change.status === 'rejected') {
-                rows.push(`<div class="text-xs text-red-700 mb-2">拒絕者：${window.formatChangeValue(change.rejectedBy || '')}` + (change.rejectedAt ? `，時間：${new Date(change.rejectedAt).toLocaleString()}` : '') + `</div>`);
-                if (change.rejectReason) rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
+                rows.push(`<div class="text-xs text-red-700 mb-2">拒絕者：${change.rejectedBy || ''}` + (change.rejectedAt ? `，時間：${new Date(change.rejectedAt).toLocaleString()}` : '') + `</div>`);
+                if (change.rejectReason) rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${change.rejectReason}</div>`);
             }
 
             rows.push('<div class="border-t border-gray-100 my-2"></div>');
             rows.push('<div class="text-sm font-black text-gray-800 mb-2"><i class="fas fa-exchange-alt mr-1 text-blue-500"></i>變更對比明細</div>');
 
-            // 2. 核心終極對比盾牌
-            if (change.type === 'card_edit' || change.type === 'title_edit' || d.content) {
-                // 先找出這張卡片目前的樣子作為舊值保底
-                const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
+            // 2. 核心過濾盾牌：不管是哪種資料變形，只抓出人類看得懂的變更
+            if (change.type === 'card_edit' || change.type === 'title_edit' || d.content !== undefined) {
+                // 先嘗試找出目前畫面記憶體中，這張卡片原本的樣子，做為改前對比基礎
+                const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? 
+                    window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
                 
-                // 定義我們要抓取出來對比的人類文字欄位
-                let oldTitle = currentCard ? (currentCard.title || currentCard.name || currentCard.content || '') : '';
-                let oldTime = currentCard ? (currentCard.time || '') : '';
-                let oldDesc = currentCard ? (currentCard.desc || currentCard.note || (Array.isArray(currentCard.items) ? currentCard.items.join(', ') : '')) : '';
-                let oldColor = currentCard ? String(currentCard.colorIndex !== undefined ? currentCard.colorIndex : (currentCard.color || '預設')) : '預設';
+                let oldText = '';
+                let newText = '';
+                let fieldTitle = '卡片內容變更';
+                let hasDiff = false;
 
-                let newTitle = oldTitle;
-                let newTime = oldTime;
-                let newDesc = oldDesc;
-                let newColor = oldColor;
-
-                // --- 狀況解析：開始拆解後台丟過來的資料到底是哪種變形 ---
-                
-                // 情境 A：丟過來的是細修小紀錄物件 {"field":"...", "oldValue":"...", "newValue":"..."}
+                // 【情境 A】如果是細修小紀錄結構（例如 5位成人先遣隊 改成 5位先遣隊）
                 let targetField = d.field || '';
                 let subOld = d.oldValue;
-                let subNew = d.newValue;
+                let subNew = d.newValue || d.value;
 
+                // 如果細修紀錄被包在 d.content 物件內部
                 if (d.content && typeof d.content === 'object' && d.content.oldValue !== undefined) {
                     subOld = d.content.oldValue;
                     subNew = d.content.newValue;
@@ -14601,87 +14595,60 @@ window.closeSettlementModal = function() {
                 }
 
                 if (targetField && subOld !== undefined && subNew !== undefined) {
-                    // 如果有明確指定單一欄位修改
-                    if (targetField === 'title' || targetField === 'name') newTitle = subNew;
-                    if (targetField === 'time') newTime = subNew;
-                    if (targetField === 'desc' || targetField === 'note' || targetField === 'content') newDesc = subNew;
-                    if (targetField === 'color') newColor = String(subNew);
+                    oldText = subOld;
+                    newText = subNew;
+                    hasDiff = true;
+                    const fieldMap = { title: '卡片標題', name: '卡片名稱', time: '行程時間', desc: '內文描述', note: '備註內容', content: '內容文字', color: '外觀顏色' };
+                    fieldTitle = fieldMap[targetField] || '項目';
                 } 
-                // 情境 B：丟過來的是整張卡片的完整複製品物件 {id, title, time, desc, colorIndex...}
+                // 【情境 B】如果是整張卡片覆蓋的大物件結構（例如您改了富平罐頭市場卡片的顏色）
                 else if (d.content && typeof d.content === 'object') {
                     const c = d.content;
-                    if (c.title !== undefined || c.name !== undefined || c.content !== undefined) {
-                        newTitle = c.title || c.name || c.content || '';
+                    const curTitle = currentCard ? (currentCard.title || currentCard.name || currentCard.content || '') : '';
+                    const nextTitle = c.title || c.name || c.content || '';
+                    
+                    // 檢查標題是不是變了
+                    if (String(curTitle).trim() !== String(nextTitle).trim()) {
+                        oldText = curTitle;
+                        newText = nextTitle;
+                        hasDiff = true;
+                        fieldTitle = '卡片標題';
+                    } 
+                    // 檢查顏色是不是變了
+                    else if (c.colorIndex !== undefined && currentCard && String(currentCard.colorIndex) !== String(c.colorIndex)) {
+                        oldText = `原本的外觀顏色 (主題代號 ${currentCard.colorIndex || 0})`;
+                        newText = `修改後的外觀顏色 (主題代號 ${c.colorIndex})`;
+                        hasDiff = true;
+                        fieldTitle = '卡片外觀顏色';
                     }
-                    if (c.time !== undefined) newTime = c.time || '';
-                    if (c.desc !== undefined || c.note !== undefined || c.items !== undefined) {
-                        newDesc = c.desc || c.note || (Array.isArray(c.items) ? c.items.join(', ') : '');
-                    }
-                    if (c.colorIndex !== undefined) newColor = String(c.colorIndex);
                 } 
-                // 情境 C：保底如果丟過來只是純字串
+                // 【情境 C】如果後台直接傳純字串
                 else if (d.content && typeof d.content === 'string') {
-                    newDesc = d.content;
+                    oldText = currentCard ? (currentCard.title || currentCard.name || currentCard.content || '（空）') : '（空）';
+                    newText = d.content;
+                    hasDiff = true;
                 }
 
-                // 最後清理：確保所有提取出來的比對值都是純字串
-                oldTitle = String(oldTitle).trim(); newTitle = String(newTitle).trim();
-                oldTime = String(oldTime).trim(); newTime = String(newTime).trim();
-                oldDesc = String(oldDesc).trim(); newDesc = String(newDesc).trim();
-                oldColor = String(oldColor).trim(); newColor = String(newColor).trim();
+                // 萬全防護：防止任何物件不小心變成 [object Object] 或大括號印出來
+                if (oldText && typeof oldText === 'object') oldText = oldText.title || oldText.name || JSON.stringify(oldText);
+                if (newText && typeof newText === 'object') newText = newText.title || newText.name || JSON.stringify(newText);
+                oldText = String(oldText !== undefined && oldText !== null ? oldText : '').trim();
+                newText = String(newText !== undefined && newText !== null ? newText : '').trim();
 
-                // 開始繪製極簡無雜訊的 HTML 對比盒
-                let diffContentHtml = '<div class="space-y-2.5">';
-                let hasAnyChange = false;
-
-                // 1. 標題對比
-                if (oldTitle !== newTitle) {
-                    hasAnyChange = true;
+                // 產生紅綠對比 HTML
+                let diffContentHtml = '<div class="space-y-2">';
+                
+                if (hasDiff && oldText !== newText) {
                     diffContentHtml += `
-                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="text-xs font-black text-gray-500 mb-1">📌 卡片標題變更：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded">改前：${oldTitle || '（空）'}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1">改後：${newTitle || '（空）'}</div>
+                        <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                            <div class="text-[11px] font-bold text-gray-500">📌 ${fieldTitle}變動對比：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded break-all">改前：${oldText || '（空）'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-0.5 break-all">改後：${newText || '（空）'}</div>
                         </div>`;
-                }
-
-                // 2. 時間對比
-                if (oldTime !== newTime) {
-                    hasAnyChange = true;
+                } else {
                     diffContentHtml += `
-                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="text-xs font-black text-gray-500 mb-1">⏰ 行程時間變更：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded">改前：${oldTime || '未設時間'}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1">改後：${newTime || '未設時間'}</div>
-                        </div>`;
-                }
-
-                // 3. 內文對比
-                if (oldDesc !== newDesc) {
-                    hasAnyChange = true;
-                    diffContentHtml += `
-                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="text-xs font-black text-gray-500 mb-1">📝 內文描述/備註變更：</div>
-                            <div class="text-red-600 text-xs line-through bg-red-50/70 px-1.5 py-0.5 rounded break-all">改前：${oldDesc || '（空）'}</div>
-                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/70 px-1.5 py-0.5 rounded mt-1 break-all">改後：${newDesc || '（空）'}</div>
-                        </div>`;
-                }
-
-                // 4. 顏色對比
-                if (oldColor !== newColor) {
-                    hasAnyChange = true;
-                    diffContentHtml += `
-                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="text-xs font-black text-gray-500 mb-1">🎨 卡片樣式背景顏色調整：</div>
-                            <div class="text-gray-600 text-xs bg-gray-100 px-1.5 py-0.5 rounded">管理員報告：此卡片更換了背景色彩主題（代號 ${oldColor} → ${newColor}）</div>
-                        </div>`;
-                }
-
-                // 5. 保底（如果數據有變，但都不是文字顏色變更）
-                if (!hasAnyChange) {
-                    diffContentHtml += `
-                        <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs font-bold border border-blue-100">
-                            ⚙️ 卡片系統參數或勾選狀態微調（文字與時間皆無變動）
+                        <div class="bg-blue-50 text-blue-700 p-3 rounded-xl text-xs font-bold border border-blue-100">
+                            ⚙️ 卡片部分參數或排序微調 (文字無重大變動)
                         </div>`;
                 }
 
@@ -14689,12 +14656,12 @@ window.closeSettlementModal = function() {
                 rows.push(diffContentHtml);
 
             } else if (change.type === 'card_delete') {
-                rows.push(`<div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-bold">🗑️ 管理員注意：此操作將會「刪除」該張卡片！</div>`);
+                rows.push(`<div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-bold">🗑️ 變更動作：此操作將會「刪除」該張卡片！</div>`);
             } else if (change.type === 'card_move') {
-                rows.push(`<div class="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-xs font-bold">🔄 調整位置：從第 ${Number(d.fromIndex)+1} 項移動到第 ${Number(d.toIndex)+1} 項。</div>`);
+                rows.push(`<div class="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-xs font-bold">🔄 變更動作：調整卡片排序位置（從第 ${Number(d.fromIndex)+1} 項移到第 ${Number(d.toIndex)+1} 項）。</div>`);
             } else {
-                if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-red-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
-                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-emerald-700 font-bold">改後：${window.formatChangeValue(d.newValue || d.value)}</div>`);
+                if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-red-600">改前：${d.oldValue}</div>`);
+                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-emerald-700 font-bold">改後：${d.newValue || d.value}</div>`);
             }
 
             return rows.map(r => `<div>${r}</div>`).join('');

@@ -14539,13 +14539,16 @@ window.closeSettlementModal = function() {
             processedContainer.innerHTML = showProcessed ? (processedItems.length ? processedItems.map(item => renderCard(item, true)).join('') : '<div class="text-sm text-gray-600">目前尚無已處理紀錄。</div>') : '<div class="text-sm text-gray-500">已隱藏，點選右上按鈕顯示。</div>';
         };
 
-        window.generateChangeDetailHtml = function(section, change) {
+		window.generateChangeDetailHtml = function(section, change) {
             if (!change) return '<div>找不到變更內容</div>';
             const d = change.data || {};
             const rows = [];
             const statusMap = { pending: '待審核', approved: '已核准', applied: '已套用', rejected: '已拒絕' };
-            rows.push(`<div class="text-sm font-bold text-gray-900 mb-2">狀態：${statusMap[change.status] || change.status || '未知'}</div>`);
+            
+            // 1. 基本資訊列
+            rows.push(`<div class="text-sm font-bold text-gray-900 mb-1">狀態：<span class="text-blue-600">${statusMap[change.status] || change.status || '未知'}</span></div>`);
             rows.push(`<div class="text-xs text-gray-500 mb-3">提交者：${window.formatChangeValue(change.changedBy || '未知')}` + (change.timestamp ? `，時間：${new Date(change.timestamp).toLocaleString()}` : '') + `</div>`);
+            
             if (change.status === 'approved' || change.status === 'applied') {
                 rows.push(`<div class="text-xs text-green-700 mb-2">批准者：${window.formatChangeValue(change.approvedBy || '')}` + (change.approvedAt ? `，時間：${new Date(change.approvedAt).toLocaleString()}` : '') + `</div>`);
             }
@@ -14553,55 +14556,83 @@ window.closeSettlementModal = function() {
                 rows.push(`<div class="text-xs text-red-700 mb-2">拒絕者：${window.formatChangeValue(change.rejectedBy || '')}` + (change.rejectedAt ? `，時間：${new Date(change.rejectedAt).toLocaleString()}` : '') + `</div>`);
                 if (change.rejectReason) rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
             }
-            if (d.cardId) rows.push(`<div class="text-xs text-gray-600 mb-2">卡片ID：${window.formatChangeValue(d.cardId)}</div>`);
-            if (d.section) rows.push(`<div class="text-xs text-gray-600 mb-2">分區：${window.formatChangeValue(d.section)}</div>`);
-            if (d.value) rows.push(`<div class="text-xs text-gray-600 mb-2">標題：${window.formatChangeValue(d.value)}</div>`);
 
-            const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
-            if (change.type === 'card_edit') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">變更內容</div>');
-                if (d.oldValue !== undefined || d.newValue !== undefined) {
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(d.oldValue)}</div>`);
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(d.newValue || d.content)}</div>`);
-                } else if (currentCard && d.content) {
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(currentCard.title || currentCard.name || currentCard.content || JSON.stringify(currentCard))}</div>`);
-                    rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(d.content.title || d.content.name || d.content.content || d.content)}</div>`);
-                } else {
-                    rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.content)}</div>`);
+            rows.push('<div class="border-t border-gray-100 my-2"></div>');
+            rows.push('<div class="text-sm font-black text-gray-800 mb-2"><i class="fas fa-exchange-alt mr-1 text-blue-500"></i>變更對比明細</div>');
+
+            // 2. 核心比對邏輯：過濾雜訊，只抓重點欄位
+            if (change.type === 'card_edit' || change.type === 'title_edit' || d.content) {
+                const currentCard = (section === 'plan' || section === 'flight' || section === 'lists' || section === 'info') ? window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
+                
+                // 智慧型新舊重點欄位提取器
+                let oldTitle = d.oldValue || (currentCard ? (currentCard.title || currentCard.name || currentCard.content) : '');
+                let newTitle = d.newValue || d.value || (d.content ? (d.content.title || d.content.name || d.content.content) : '');
+                
+                let oldDesc = currentCard ? (currentCard.desc || currentCard.note || (Array.isArray(currentCard.items) ? currentCard.items.join(', ') : '')) : '';
+                let newDesc = d.content ? (d.content.desc || d.content.note || (Array.isArray(d.content.items) ? d.content.items.join(', ') : '')) : '';
+
+                let oldTime = currentCard ? (currentCard.time || '') : '';
+                let newTime = d.content ? (d.content.time || '') : '';
+
+                // 如果標題是一整個物件，進行防錯解構
+                if (typeof oldTitle === 'object') oldTitle = oldTitle.title || oldTitle.name || oldTitle.content || '';
+                if (typeof newTitle === 'object') newTitle = newTitle.title || newTitle.name || newTitle.content || '';
+
+                // 產生極簡對比 HTML
+                let diffContentHtml = '<div class="space-y-2">';
+                
+                // 標題有變，才顯示標題
+                if (oldTitle !== newTitle) {
+                    diffContentHtml += `
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-bold text-gray-500 mb-1">📌 卡片標題變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded">改前：${window.formatChangeValue(oldTitle || '無')}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1">改後：${window.formatChangeValue(newTitle || '無')}</div>
+                        </div>`;
                 }
-            } else if (change.type === 'card_move') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">置換位置</div>');
-                rows.push(`<div class="text-xs text-gray-600">從 index ${window.formatChangeValue(d.fromIndex)} 移至 index ${window.formatChangeValue(d.toIndex)}</div>`);
+                // 時間有變，才顯示時間
+                if (oldTime !== newTime) {
+                    diffContentHtml += `
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-bold text-gray-500 mb-1">⏰ 行程時間變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded">改前：${oldTime || '未設時間'}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1">改後：${newTime || '未設時間'}</div>
+                        </div>`;
+                }
+                // 內文或備註有變，才顯示內文
+                if (oldDesc !== newDesc && (oldDesc || newDesc)) {
+                    diffContentHtml += `
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div class="text-xs font-bold text-gray-500 mb-1">📝 內文描述/備註變更：</div>
+                            <div class="text-red-600 text-xs line-through bg-red-50/50 px-1.5 py-0.5 rounded break-all">改前：${window.formatChangeValue(oldDesc || '空')}</div>
+                            <div class="text-emerald-700 text-xs font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded mt-1 break-all">改後：${window.formatChangeValue(newDesc || '空')}</div>
+                        </div>`;
+                }
+
+                // 如果上面三個都剛好一樣，做為保底防呆顯示
+                if (oldTitle === newTitle && oldTime === newTime && oldDesc === newDesc) {
+                    diffContentHtml += `
+                        <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs font-bold">
+                            卡片標題/內容微調更新 (系統數值或顏色變更)
+                        </div>`;
+                }
+
+                diffContentHtml += '</div>';
+                rows.push(diffContentHtml);
+
             } else if (change.type === 'card_delete') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">刪除卡片</div>');
-                rows.push(`<div class="text-xs text-gray-600">將刪除卡片，卡片內容：${window.formatChangeValue(currentCard || d)}</div>`);
-            } else if (change.type === 'title_edit') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">標題變更</div>');
-                if (d.oldValue !== undefined || d.newValue !== undefined) {
-                    rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
-                    rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newValue || d.value)}</div>`);
-                } else {
-                    rows.push(`<div class="text-xs text-gray-600">新標題：${window.formatChangeValue(d.value)}</div>`);
-                }
-            } else if (change.type === 'members_edit') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">成員列表變更</div>');
-                if (d.oldMembers !== undefined || d.newMembers !== undefined) {
-                    rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldMembers)}</div>`);
-                    rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newMembers || d.travelMembers)}</div>`);
-                } else {
-                    rows.push(`<div class="text-xs text-gray-600">新成員：${window.formatChangeValue(d.travelMembers)}</div>`);
-                }
-            } else if (change.type === 'memo_update') {
-                rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">備忘錄變更</div>');
-                rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.memoList)}</div>`);
+                rows.push(`<div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-bold">🗑️ 管理員注意：此操作將會「刪除」該張卡片！</div>`);
+            } else if (change.type === 'card_move') {
+                rows.push(`<div class="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-xs font-bold">🔄 調整位置：從第 ${Number(d.fromIndex)+1} 項移動到第 ${Number(d.toIndex)+1} 項。</div>`);
             } else {
-                if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
-                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newValue)}</div>`);
-                if (d.content !== undefined) rows.push(`<div class="text-xs text-gray-600">內容：${window.formatChangeValue(d.content)}</div>`);
+                // 其他類型保底顯示
+                if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-red-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
+                if (d.newValue !== undefined) rows.push(`<div class="text-xs text-emerald-700 font-bold">改後：${window.formatChangeValue(d.newValue || d.value || d.content)}</div>`);
             }
+
             return rows.map(r => `<div>${r}</div>`).join('');
         };
-
+		
         window.openPendingChangeDetail = function(section, changeId) {
             const modal = document.getElementById('pending-change-detail-modal');
             const titleEl = document.getElementById('pending-change-detail-title');

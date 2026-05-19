@@ -7260,8 +7260,10 @@ window.saveTitle = async function(key, val, forceSave) {
             }
             
             const ip = document.getElementById('info-edit-icon-picker');
-            if(ip) ip.innerHTML = iconsList.map(ic => `<button onclick="editState.icon='${ic}'; updateInfoModalUI()" class="w-8 h-8 flex items-center justify-center rounded border transition shrink-0 shadow-sm ${editState.icon===ic?'border-gray-500 bg-gray-200 scale-110 ring-1 ring-gray-400':'border-gray-200 bg-white hover:bg-gray-100'}"><i class="fas ${ic} text-gray-700"></i></button>`).join('');
-        } // ★ 就是這個括號！上次不小心被刪掉了 ★
+            if(ip) {
+                ip.innerHTML = iconsList.map(ic => `<button type="button" onclick="editState.icon='${ic}'; updateInfoModalUI()" class="w-8 h-8 flex items-center justify-center rounded border transition shrink-0 shadow-sm ${editState.icon===ic?'border-gray-500 bg-gray-200 scale-110 ring-1 ring-gray-400':'border-gray-200 bg-white hover:bg-gray-100'}"><i class="fas ${ic} text-gray-700"></i></button>`).join('');
+            }
+        };
         
         window.openInfoModal = function(tab, cardId = null) {
             currentEditTab = tab;
@@ -10336,7 +10338,7 @@ window.closeSettlementModal = function() {
             return window.pendingChanges[section] || [];
         };
 
-        window.pendingReviewViewState = {
+		window.pendingReviewViewState = {
             sectionFilter: 'all',
             showProcessed: false
         };
@@ -10351,101 +10353,7 @@ window.closeSettlementModal = function() {
             window.renderPendingChangeList && window.renderPendingChangeList();
         };
 
-        window.approveChange = function(section, changeId) {
-            const changes = window.pendingChanges[section] || [];
-            const changeIndex = changes.findIndex(c => c.id === changeId);
-            if (changeIndex >= 0) {
-                changes[changeIndex].status = 'approved';
-                changes[changeIndex].approvedBy = window.currentUserName;
-                changes[changeIndex].approvedAt = Date.now();
-                window.persistSectionReviewState();
-                window.applyApprovedChanges(section);
-                return changes[changeIndex];
-            }
-            return null;
-        };
-
-        window.rejectChange = function(section, changeId, reason) {
-            const changes = window.pendingChanges[section] || [];
-            const changeIndex = changes.findIndex(c => c.id === changeId);
-            if (changeIndex >= 0) {
-                changes[changeIndex].status = 'rejected';
-                changes[changeIndex].rejectedBy = window.currentUserName;
-                changes[changeIndex].rejectedAt = Date.now();
-                changes[changeIndex].rejectReason = reason || '';
-                window.persistSectionReviewState();
-                window.renderPendingChangeList && window.renderPendingChangeList();
-                return changes[changeIndex];
-            }
-            return null;
-        };
-
-        window.applyApprovedChanges = function(section) {
-            const changes = window.pendingChanges[section] || [];
-            const approvedChanges = changes.filter(c => c.status === 'approved');
-            
-            approvedChanges.forEach(change => {
-                if (change.type === 'card_move') {
-                    window.moveCardInSection(section, change.data.fromIndex, change.data.toIndex);
-                } else if (change.type === 'card_edit') {
-                    window.saveCardContent(change.data.cardId, change.data.content, section);
-                } else if (change.type === 'card_delete') {
-                    window.deleteCard(change.data.cardId, section);
-                } else if (change.type === 'title_edit') {
-                    if (typeof window.saveTitle === 'function') window.saveTitle(section, change.data.value, true);
-                } else if (change.type === 'memo_update') {
-                    if (Array.isArray(change.data.memoList)) {
-                        memoList = change.data.memoList;
-                        if (typeof window.saveMemoList === 'function') window.saveMemoList();
-                    }
-                } else if (change.type === 'members_edit') {
-                    if (Array.isArray(change.data.travelMembers)) {
-                        travelMembers = change.data.travelMembers;
-                        if (typeof window.saveTravelMembers === 'function') window.saveTravelMembers();
-                    }
-                }
-                change.status = 'applied';
-                change.appliedAt = Date.now();
-            });
-            
-            window.persistSectionReviewState();
-            window.renderPendingChangeList && window.renderPendingChangeList();
-        };
-
-        window.openPendingChangesModal = function() {
-            const modal = document.getElementById('pending-changes-modal');
-            if (!modal) return;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            window.renderPendingChangeList();
-        };
-
-        window.closePendingChangesModal = function() {
-            const modal = document.getElementById('pending-changes-modal');
-            if (!modal) return;
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-
-        window.renderPendingChangeList = function() {
-            const container = document.getElementById('pending-changes-list');
-            if (!container) return;
-            const allSections = ['plan', 'flight', 'info', 'lists', 'wallet'];
-            const sectionLabels = {
-                plan: '每日行程',
-                flight: '航班資訊',
-                info: '重要資訊',
-                lists: '備忘錄',
-                wallet: '記帳'
-            };
-            const items = allSections.flatMap(section => {
-                return window.getPendingChanges(section).map(change => ({ section, sectionLabel: sectionLabels[section] || section, change }));
-            });
-            if (!items.length) {
-                container.innerHTML = '<div class="text-sm text-gray-600">目前沒有待審核的變更。</div>';
-                return;
-            }
-            container.innerHTML = items.map(item => {
+		container.innerHTML = items.map(item => {
                 const change = item.change;
                 const adminControl = window.isAdminOfSection(item.section) ? `
                     <div class="mt-2 flex gap-2">
@@ -14399,7 +14307,7 @@ window.closeSettlementModal = function() {
             return String(value);
         };
 
-		window.generateChangeSummaryText = function(section, change) {
+	window.generateChangeSummaryText = function(section, change) {
             if (!change) return '無變更說明';
             const d = change.data || {};
             if (change.type === 'card_add') return `➕ 新增卡片：${d.title || d.name || d.value || '未命名'}`;
@@ -14410,7 +14318,6 @@ window.closeSettlementModal = function() {
             if (change.type === 'memo_update') return `📝 更新備忘錄清單`;
             
             if (change.type === 'card_edit') {
-                // 智慧判斷究竟是改了什麼核心項目
                 let fName = d.field || '';
                 if (d.content && typeof d.content === 'object' && d.content.field) {
                     fName = d.content.field;
@@ -14425,7 +14332,6 @@ window.closeSettlementModal = function() {
                     return `✏️ 修改卡片：變更了【${fieldTxtMap[fName]}】`;
                 }
                 
-                // 如果是整張卡片覆蓋(例如改顏色時觸發的結構)，判斷是不是動到顏色
                 if (d.content && typeof d.content === 'object' && d.content.colorIndex !== undefined) {
                     return `🎨 修改卡片：變更了卡片外觀顏色或內容`;
                 }
@@ -14434,12 +14340,13 @@ window.closeSettlementModal = function() {
             }
             return `${change.type || '未知變更'}`;
         };
-		
-		window.renderPendingChangeList = function() {
+
+        window.renderPendingChangeList = function() {
             const pendingContainer = document.getElementById('pending-changes-list');
             const processedContainer = document.getElementById('processed-changes-list');
             const filterBar = document.getElementById('pending-changes-filter-bar');
             if (!pendingContainer || !processedContainer || !filterBar) return;
+            
             const allSections = ['plan', 'flight', 'info', 'lists', 'wallet'];
             const sectionLabels = {
                 plan: '每日行程',
@@ -14459,7 +14366,7 @@ window.closeSettlementModal = function() {
             const pendingItems = filteredItems.filter(item => item.change.status === 'pending');
             const processedItems = filteredItems.filter(item => item.change.status !== 'pending');
 
-            // 1. 渲染上方分類選單按鈕
+            // 1. 渲染分類按鈕
             const filterButtons = [
                 { filter: 'all', label: '全部' },
                 { filter: 'plan', label: '每日行程' },
@@ -14468,100 +14375,28 @@ window.closeSettlementModal = function() {
                 { filter: 'lists', label: '備忘錄' },
                 { filter: 'wallet', label: '記帳' }
             ];
-            filterBar.innerHTML = filterButtons.map(b => {
+            
+            filterBar.innerHTML = `<div class="flex flex-wrap items-center gap-2">` + filterButtons.map(b => {
                 const active = sectionFilter === b.filter;
                 return `<button type="button" onclick="window.setPendingChangesSectionFilter('${b.filter}')" class="px-2.5 py-1 rounded-full text-[12px] font-bold ${active ? 'bg-[#0369a1] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${b.label}</button>`;
-            }).join('');
+            }).join('') + `</div>`;
 
-            // 2. 智慧核心：將卡片渲染包裝成乾淨摘要，徹底拿掉會導致外層出現大括號的詳細文字
-            const renderItemCardHtml = (item) => {
-                const change = item.change;
-                
-                // 產生極簡純文字摘要，拒絕系統亂碼
-                let summaryText = '變更項目';
-                if (change.type === 'card_add') summaryText = `➕ 新增項目：${change.data?.title || change.data?.name || '全新卡片'}`;
-                else if (change.type === 'card_delete') summaryText = `🗑️ 刪除項目：${change.data?.title || change.data?.name || '卡片項目'}`;
-                else if (change.type === 'card_edit' || change.type === 'title_edit') summaryText = `✏️ 修改項目內容與屬性`;
-                else if (change.type === 'card_move') summaryText = `🔄 調整排序位置`;
-
-                // 管理員核准按鈕列（加上 stopPropagation 防止點按鈕時重複觸發彈窗）
-                const adminControl = window.isAdminOfSection(item.section) && change.status === 'pending' ? `
-                    <div class="mt-2 flex gap-2">
-                        <button class="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#16a34a] text-white hover:bg-[#15803d] shadow-sm transition" onclick="window.handleApproveChange('${item.section}','${change.id}'); event.stopPropagation();">批准</button>
-                        <button class="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c] shadow-sm transition" onclick="window.handleRejectChange('${item.section}','${change.id}'); event.stopPropagation();">拒絕</button>
-                    </div>
-                ` : '';
-
-                const statusColorMap = { pending: 'text-orange-500', approved: 'text-green-600', applied: 'text-blue-600', rejected: 'text-red-500' };
-                const statusLabelMap = { pending: '待審核', approved: '已批准', applied: '已套用', rejected: '已拒絕' };
-
-                return `
-                    <div class="rounded-xl border border-gray-100 p-3.5 bg-white shadow-sm mb-3 hover:border-blue-300 transition duration-150 cursor-pointer" onclick="window.openPendingChangeDetail('${item.section}','${change.id}')">
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="min-w-0 flex-1">
-                                <div class="text-[10px] font-bold text-gray-400 mb-0.5">${item.sectionLabel}</div>
-                                <div class="text-sm font-black text-gray-800 truncate">${summaryText}</div>
-                                <div class="text-[11px] text-gray-500 mt-1 flex items-center gap-1.5">
-                                    <span>提交者：<strong class="text-gray-700">${change.changedBy || '未知'}</strong></span>
-                                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                    <span class="${statusColorMap[change.status] || 'text-gray-500'} font-bold">${statusLabelMap[change.status] || change.status}</span>
-                                </div>
-                            </div>
-                            <div class="text-[10px] text-gray-400 self-start whitespace-nowrap">${new Date(change.timestamp).toLocaleString()}</div>
-                        </div>
-                        <div class="mt-2.5 flex items-center justify-between border-t border-gray-50 pt-2">
-                            <span class="text-[11px] text-blue-500 font-medium"><i class="fas fa-search-plus mr-1"></i>點擊查看詳細比對明細</span>
-                            ${adminControl}
-                        </div>
-                    </div>
-                `;
-            };
-
-            // 3. 渲染待審核列表
-            if (!pendingItems.length) {
-                pendingContainer.innerHTML = '<div class="text-center py-8 text-xs text-gray-400"><i class="fas fa-inbox block text-lg mb-1 text-gray-300"></i>目前沒有待審核的變更項目</div>';
-            } else {
-                pendingContainer.innerHTML = pendingItems.map(renderItemCardHtml).join('');
-            }
-
-            // 4. 渲染已處理紀錄列表
-            if (!processedItems.length) {
-                processedContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-400">沒有已處理的紀錄</div>';
-            } else {
-                processedContainer.innerHTML = processedItems.map(renderItemCardHtml).join('');
-            }
-        };
-		
-            filterBar.innerHTML = `
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-[12px] font-bold text-gray-700">分區篩選：</span>
-                    ${renderSectionButton('all', '全部')}
-                    ${renderSectionButton('plan', '行程')}
-                    ${renderSectionButton('flight', '航班')}
-                    ${renderSectionButton('info', '資訊')}
-                    ${renderSectionButton('lists', '備忘錄')}
-                    ${renderSectionButton('wallet', '記帳')}
-                </div>
-                <div class="flex items-center gap-2 text-[12px]">
-                    <button type="button" onclick="window.toggleProcessedChangesVisibility()" class="px-3 py-1 rounded-full bg-[#f3f4f6] text-gray-700 hover:bg-gray-200 font-bold">${showProcessed ? '隱藏已處理項目' : '顯示已處理項目'}</button>
-                </div>
-            `;
-
-		const renderCard = (item, isProcessed) => {
+            // 2. 核心渲染卡片函數
+            const renderCard = (item, isProcessed) => {
                 const change = item.change;
                 const statusName = change.status === 'approved' ? '已批准' : change.status === 'applied' ? '已套用' : change.status === 'rejected' ? '已拒絕' : '待審核';
                 const statusClass = change.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700';
                 const statusBadge = `<span class="text-[10px] font-bold px-2 py-1 rounded-full ${statusClass}">${statusName}</span>`;
                 const adminControl = !isProcessed && window.isAdminOfSection(item.section) ? `
                     <div class="mt-2 flex gap-2">
-                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#16a34a] text-white hover:bg-[#15803d]" onclick="event.stopPropagation(); window.handleApproveChange('${item.section}','${change.id}')">批准</button>
-                        <button class="px-3 py-2 text-xs font-bold rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c]" onclick="event.stopPropagation(); window.handleRejectChange('${item.section}','${change.id}')">拒絕</button>
+                        <button type="button" class="px-3 py-2 text-xs font-bold rounded-lg bg-[#16a34a] text-white hover:bg-[#15803d]" onclick="event.stopPropagation(); window.handleApproveChange('${item.section}','${change.id}')">批准</button>
+                        <button type="button" class="px-3 py-2 text-xs font-bold rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c]" onclick="event.stopPropagation(); window.handleRejectChange('${item.section}','${change.id}')">拒絕</button>
                     </div>
                 ` : '';
                 
                 const detailText = window.generateChangeSummaryText(item.section, change);
                 
-                // 【智慧比對核心】自動提取改前與改後的內容欄位
+                // 智慧比對：自動提取改前與改後的內容欄位
                 let diffHtml = '';
                 if (change.type === 'card_edit' && change.data) {
                     const d = change.data;
@@ -14570,18 +14405,15 @@ window.closeSettlementModal = function() {
                         ? (window.getCardDataArrayByTab ? window.getCardDataArrayByTab(item.section).find(c => c.id === d.cardId) : null) 
                         : null;
 
-                    // 智慧判定舊內文 (描述、備註、或者清單項目)
                     let oldVal = d.oldValue;
                     if (oldVal === undefined && currentCard) {
                         oldVal = currentCard.desc || currentCard.note || (Array.isArray(currentCard.items) ? currentCard.items.join(', ') : '');
                     }
-                    // 智慧判定新內文
                     let newVal = d.newValue;
                     if (newVal === undefined && d.content) {
                         newVal = d.content.desc || d.content.note || (Array.isArray(d.content.items) ? d.content.items.join(', ') : d.content);
                     }
 
-                    // 如果有偵測到具體的內文或時間修改，就自己產出高對比的紅綠色塊
                     if (oldVal || newVal || cContent.time) {
                         const oldTimeStr = (currentCard && currentCard.time) ? `【時間: ${currentCard.time}】` : '';
                         const newTimeStr = cContent.time ? `【時間: ${cContent.time}】` : '';
@@ -14596,7 +14428,7 @@ window.closeSettlementModal = function() {
                 }
 
                 return `
-                    <div class="rounded-xl border border-gray-200 p-3 bg-white shadow-sm mb-3 cursor-pointer" onclick="openPendingChangeDetail('${item.section}','${change.id}')">
+                    <div class="rounded-xl border border-gray-200 p-3 bg-white shadow-sm mb-3 cursor-pointer" onclick="window.openPendingChangeDetail('${item.section}','${change.id}')">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-sm font-bold text-gray-900">${item.sectionLabel} - ${change.type}</div>
@@ -14613,18 +14445,17 @@ window.closeSettlementModal = function() {
                     </div>
                 `;
             };
-			
-            pendingContainer.innerHTML = pendingItems.length ? pendingItems.map(item => renderCard(item, false)).join('') : '<div class="text-sm text-gray-600">目前沒有待審核的變更。</div>';
-            processedContainer.innerHTML = showProcessed ? (processedItems.length ? processedItems.map(item => renderCard(item, true)).join('') : '<div class="text-sm text-gray-600">目前尚無已處理紀錄。</div>') : '<div class="text-sm text-gray-500">已隱藏，點選右上按鈕顯示。</div>';
+            
+            pendingContainer.innerHTML = pendingItems.length ? pendingItems.map(item => renderCard(item, false)).join('') : '<div class="text-sm text-gray-600 text-center py-4">目前沒有待審核的變更。</div>';
+            processedContainer.innerHTML = showProcessed ? (processedItems.length ? processedItems.map(item => renderCard(item, true)).join('') : '<div class="text-sm text-gray-600 text-center py-4">目前尚無已處理紀錄。</div>') : '<div class="text-sm text-gray-400 text-center py-2">已隱藏，可按「顯示已處理項目」查看。</div>';
         };
 
-		window.generateChangeDetailHtml = function(section, change) {
+        window.generateChangeDetailHtml = function(section, change) {
             if (!change) return '<div>找不到變更內容</div>';
             const d = change.data || {};
             const rows = [];
             const statusMap = { pending: '待審核', approved: '已核准', applied: '已套用', rejected: '已拒絕' };
             
-            // 1. 基本狀態資訊
             rows.push(`<div class="text-xs text-gray-500 mb-2 space-y-0.5">`);
             rows.push(`<div><strong>審核狀態：</strong><span class="text-blue-600 font-bold">${statusMap[change.status] || change.status || '待審核'}</span></div>`);
             rows.push(`<div><strong>提交人員：</strong>${change.changedBy || '未知'}</div>`);
@@ -14634,9 +14465,7 @@ window.closeSettlementModal = function() {
             rows.push('<div class="border-t border-gray-200 my-2"></div>');
             rows.push('<div class="text-xs font-black text-gray-800 mb-2"><i class="fas fa-exchange-alt mr-1 text-blue-500"></i>變更前後對比明細：</div>');
 
-            // 2. 智慧核心過濾盾牌：不管是改文字還是改顏色，只抓出人類看得懂的變更
             if (change.type === 'card_edit' || change.type === 'title_edit' || d.content !== undefined) {
-                // 嘗試撈取當前記憶體中的卡片資料作為對比基礎
                 const currentCard = (typeof window.getCardDataArrayByTab === 'function') ? 
                     window.getCardDataArrayByTab(section).find(c => c.id === d.cardId) : null;
                 
@@ -14645,7 +14474,6 @@ window.closeSettlementModal = function() {
                 let fieldTitle = '卡片內容';
                 let hasDiff = false;
 
-                // 【情境 A】如果是細修小紀錄結構（例如 5位成人先遣隊 改成 5位先遣隊）
                 let targetField = d.field || '';
                 let subOld = d.oldValue;
                 let subNew = d.newValue || d.value;
@@ -14662,9 +14490,7 @@ window.closeSettlementModal = function() {
                     hasDiff = true;
                     const fieldMap = { title: '卡片標題', name: '卡片名稱', time: '行程時間', desc: '內文描述', note: '備註內容', content: '內容文字', color: '外觀顏色' };
                     fieldTitle = fieldMap[targetField] || '項目';
-                } 
-                // 【情境 B】如果是整張卡片覆蓋的大物件結構（例如您修改了富平市場的卡片顏色）
-                else if (d.content && typeof d.content === 'object') {
+                } else if (d.content && typeof d.content === 'object') {
                     const c = d.content;
                     const curTitle = currentCard ? (currentCard.title || currentCard.name || currentCard.content || '') : '';
                     const nextTitle = c.title || c.name || c.content || '';
@@ -14691,7 +14517,6 @@ window.closeSettlementModal = function() {
                     hasDiff = true;
                 }
 
-                // 萬全防護：防止任何物件不小心變成 [object Object] 印出來
                 if (oldText && typeof oldText === 'object') oldText = JSON.stringify(oldText);
                 if (newText && typeof newText === 'object') newText = JSON.stringify(newText);
                 oldText = String(oldText || '').trim();

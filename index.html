@@ -49,56 +49,6 @@
 	
     </script>
 
-    <script>
-        // 盡早宣告初次雲端同步旗標，避免啟動期間本地舊資料被推回雲端
-        window._initialCloudRefreshInProgress = true;
-
-        // 簡易同步中指示器（暫時顯示於右上角）
-        window.showCloudSyncIndicator = function(show) {
-            try {
-                let el = document.getElementById('cloud-sync-indicator');
-                if (!el) {
-                    el = document.createElement('div');
-                    el.id = 'cloud-sync-indicator';
-                    el.style.position = 'fixed';
-                    el.style.right = '12px';
-                    el.style.top = '12px';
-                    el.style.zIndex = 99999;
-                    el.style.padding = '6px 10px';
-                    el.style.borderRadius = '8px';
-                    el.style.background = 'rgba(2,6,23,0.8)';
-                    el.style.color = '#fff';
-                    el.style.fontSize = '12px';
-                    el.style.fontWeight = '600';
-                    el.style.backdropFilter = 'blur(4px)';
-                    el.innerText = '同步中…';
-                    document.body && document.body.appendChild(el);
-                }
-                el.style.display = show ? 'block' : 'none';
-            } catch (e) { /* ignore */ }
-        };
-
-        // Debug helper to inspect sync-related state
-        window.debugSyncState = function() {
-            return {
-                initialCloudRefreshInProgress: !!window._initialCloudRefreshInProgress,
-                pendingGlobalState: window._pendingGlobalState || {},
-                globalStateTimer: !!window._globalStateSaveTimer,
-                planCardsLastModified,
-                flightCardsLastModified,
-                infoCardsLastModified,
-                listsCardsLastModified,
-                memoLastModified,
-                memoListLastModified,
-                travelMembersLastModified,
-                titlesLastModified
-            };
-        };
-
-        // 頁面載入時預設顯示同步中，fetch 結束會隱藏
-        window.showCloudSyncIndicator(true);
-    </script>
-
     <style>
     /* 強制所有分類選單寬度 */
         #exp-category.wallet-category-select,
@@ -1756,7 +1706,6 @@
         let titles = {};
         let customSectionTitles = {};
         let travelMembersLastModified = 0;
-        let memoLastModified = 0;
         let memoListLastModified = 0;
         let titlesLastModified = 0;
         const WEATHER_WIDGET_CARD_ID = '__weather_widget__';
@@ -1817,11 +1766,7 @@
                 return { ...card, id };
             });
             if (changed) {
-                listsCardsLastModified = Date.now();
-                persistCardStorage('korea_lists_v1', listsCardsData, listsCardsLastModified);
-                if (currentUser) {
-                    window.queueGlobalStateUpdate({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified });
-                }
+                try { localStorage.setItem('korea_lists_v1', JSON.stringify(listsCardsData)); } catch (_) {}
             }
         };
 
@@ -2958,17 +2903,16 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         };
 
         window.persistAllCurrentStateToLocal = function() {
-            persistCardStorage('korea_plan_v6', planCardsData || [], planCardsLastModified);
-            persistCardStorage('korea_flight_v4', flightCardsData || [], flightCardsLastModified);
-            persistCardStorage('korea_info_v8', infoCardsData || [], infoCardsLastModified);
-            persistCardStorage('korea_lists_v1', listsCardsData || [], listsCardsLastModified);
+            localStorage.setItem('korea_plan_v6', JSON.stringify(planCardsData || []));
+            localStorage.setItem('korea_flight_v4', JSON.stringify(flightCardsData || []));
+            localStorage.setItem('korea_info_v8', JSON.stringify(infoCardsData || []));
+            localStorage.setItem('korea_lists_v1', JSON.stringify(listsCardsData || []));
             localStorage.setItem('korea_weather_locs_v3', JSON.stringify(weatherLocs || []));
             localStorage.setItem('korea_expenses_v3', JSON.stringify(expenses || []));
-            persistSyncStorage('korea_travel_members_v1', travelMembers || [], travelMembersLastModified);
-            try { localStorage.setItem('korea_memo_2026_v3', memo || ''); } catch (_) {}
-            persistSyncStorage('korea_memo_v1', memo || '', memoLastModified);
+            localStorage.setItem('korea_travel_members_v1', JSON.stringify(travelMembers || []));
+            localStorage.setItem('korea_memo_2026_v3', memo || '');
             localStorage.setItem('korea_chk_2026_v7', JSON.stringify(checklist || []));
-            persistSyncStorage('korea_titles_v2', titles || {}, titlesLastModified);
+            localStorage.setItem('korea_titles_v2', JSON.stringify(titles || {}));
             localStorage.setItem('korea_custom_titles_v1', JSON.stringify(customSectionTitles || {}));
             localStorage.setItem('korea_weather_widget_placement_v1', JSON.stringify(weatherWidgetPlacement || { sectionTitleId: '', anchorCardId: '', position: 'after' }));
             localStorage.setItem('korea_lists_checklist_placement_v1', JSON.stringify(listsChecklistPlacement || { sectionTitleId: '', anchorCardId: '', position: 'after' }));
@@ -3025,10 +2969,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         window.saveCurrentTripProfileSnapshot = function() {
             const idx = tripProfiles.findIndex(p => p && p.id === activeTripId);
             if (idx < 0) return;
-            if (!memoLastModified && memo && memo.trim() && memo.trim() !== String(defaultMemo || '').trim()) {
-                memoLastModified = Date.now();
-                persistSyncStorage('korea_memo_v1', memo, memoLastModified);
-            }
             tripProfiles[idx].name = topNavSettings.tripName;
             tripProfiles[idx].navSettings = window.deepCloneJSON(topNavSettings, defaultTopNavSettings);
             tripProfiles[idx].snapshot = window.getCurrentTripSnapshot();
@@ -4723,40 +4663,67 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
             return [];
         }
 
-        function loadCardStorage(key, defaultData) {
-            const raw = safeParseJSON(localStorage.getItem(key), null);
-            if (raw && typeof raw === 'object' && Array.isArray(raw.data)) {
-                return {
-                    data: raw.data,
-                    lastModified: Number(raw.lastModified || 0)
-                };
-            }
-            if (Array.isArray(raw)) {
-                return {
-                    data: raw,
-                    lastModified: 0
-                };
-            }
-            return {
-                data: defaultData,
-                lastModified: 0
-            };
-        }
+		// 【智慧雲端同步版工具】
+		function loadCardStorage(key, defaultData) {
+			// 1. 如果有 Firebase 雲端且是四大行程資料，嘗試在背景默默更新本機快取
+			if (window.firebaseDb && ['korea_plan_v6', 'korea_flight_v4', 'korea_info_v8', 'korea_lists_v1'].includes(key)) {
+				try {
+					const { doc, getDoc } = window.fsCollections;
+					const docRef = doc(window.firebaseDb, "trips", "korea2026");
+					
+					// 這裡改成在背景偷偷下載，不卡死網頁開啟速度
+					getDoc(docRef).then(docSnap => {
+						if (docSnap.exists()) {
+							const cloudData = docSnap.data();
+							if (cloudData) {
+								let targetCloudCards = null;
+								if (key === 'korea_plan_v6' && cloudData.planCards) targetCloudCards = cloudData.planCards;
+								if (key === 'korea_flight_v4' && cloudData.flightCards) targetCloudCards = cloudData.flightCards;
+								if (key === 'korea_info_v8' && cloudData.infoCards) targetCloudCards = cloudData.infoCards;
+								if (key === 'korea_lists_v1' && cloudData.listsCards) targetCloudCards = cloudData.listsCards;
+								
+								if (targetCloudCards) {
+									const formatToStore = {
+										data: targetCloudCards,
+										lastModified: Number(cloudData.updatedAt || Date.now())
+									};
+									localStorage.setItem(key, JSON.stringify(formatToStore));
+									console.log(`【背景同步】雲端數據已安全存入本地：${key}`);
+								}
+							}
+						}
+					}).catch(e => console.warn("背景同步失敗:", e));
+					
+				} catch (cloudError) {
+					console.warn(`【雲端同步】無法即時連線雲端(${key})。`, cloudError);
+				}
+			}
 
+			// 2. 您原本最安全的本機讀取邏輯（完全沒變）
+			const raw = safeParseJSON(localStorage.getItem(key), null);
+			if (raw && typeof raw === 'object' && Array.isArray(raw.data)) {
+				return {
+					data: raw.data,
+					lastModified: Number(raw.lastModified || 0)
+				};
+			}
+			if (Array.isArray(raw)) {
+				return {
+					data: raw,
+					lastModified: 0
+				};
+			}
+			return {
+				data: defaultData,
+				lastModified: 0
+			};
+		}
         function persistCardStorage(key, data, timestamp) {
             const payload = {
                 data: Array.isArray(data) ? data : [],
                 lastModified: Number(timestamp) || Date.now()
             };
             try {
-                const existing = safeParseJSON(localStorage.getItem(key), null);
-                const existingTS = existing && typeof existing === 'object' ? Number(existing.lastModified || 0) : 0;
-                if (payload.lastModified < existingTS) {
-                    console.warn('persistCardStorage skip older write for', key, payload.lastModified, '<', existingTS);
-                    console.debug({op: 'persistCardStorage.skip', key, payloadLastModified: payload.lastModified, existingTS});
-                    return;
-                }
-                console.debug({op: 'persistCardStorage.write', key, payloadLastModified: payload.lastModified});
                 localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
                 console.error('persistCardStorage failed for', key, e);
@@ -4765,24 +4732,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
 
         function getCloudTimestamp(data, field) {
             return Number((data && data[field]) || 0);
-        }
-
-        function isEmptySyncValue(value) {
-            if (value === undefined || value === null) return true;
-            if (typeof value === 'string') return value.trim().length === 0;
-            if (Array.isArray(value)) return value.length === 0;
-            if (typeof value === 'object') return Object.keys(value).length === 0;
-            return false;
-        }
-
-        function shouldReplaceLocalWithCloud(localTS, cloudTS, localValue, cloudValue) {
-            if (cloudTS > localTS) return true;
-            if (cloudTS === localTS && isEmptySyncValue(localValue) && !isEmptySyncValue(cloudValue)) return true;
-            return false;
-        }
-
-        function shouldPromoteLocalToCloud(localTS, cloudTS, localValue) {
-            return localTS > cloudTS && !isEmptySyncValue(localValue);
         }
 
         function loadSyncStorage(key, defaultData) {
@@ -4805,14 +4754,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                 lastModified: Number(timestamp) || Date.now()
             };
             try {
-                const existing = safeParseJSON(localStorage.getItem(key), null);
-                const existingTS = existing && typeof existing === 'object' ? Number(existing.lastModified || 0) : 0;
-                if (payload.lastModified < existingTS) {
-                    console.warn('persistSyncStorage skip older write for', key, payload.lastModified, '<', existingTS);
-                    console.debug({op: 'persistSyncStorage.skip', key, payloadLastModified: payload.lastModified, existingTS});
-                    return;
-                }
-                console.debug({op: 'persistSyncStorage.write', key, payloadLastModified: payload.lastModified});
                 localStorage.setItem(key, JSON.stringify(payload));
             } catch (e) {
                 console.error('persistSyncStorage failed for', key, e);
@@ -4822,108 +4763,22 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         // 批次/防抖包裝：合併多個短時間內的雲端更新，減少頻繁寫入
         window._pendingGlobalState = {};
         window._globalStateSaveTimer = null;
-        window._initialCloudRefreshInProgress = false;
-
-        window.flushPendingGlobalState = function() {
-            if (window._initialCloudRefreshInProgress) {
-                if (window._globalStateSaveTimer) return;
-                window._globalStateSaveTimer = setTimeout(window.flushPendingGlobalState, 200);
-                return;
-            }
-            const payload = window._pendingGlobalState || {};
-            if (Object.keys(payload).length === 0) {
-                window._globalStateSaveTimer = null;
-                return;
-            }
-            window._pendingGlobalState = {};
-            window._globalStateSaveTimer = null;
-            if (typeof window.saveGlobalState === 'function') {
-                window.saveGlobalState(payload);
-            }
-        };
-
-        window.prunePendingGlobalState = function() {
-            const pending = window._pendingGlobalState || {};
-            const timestamped = [
-                { value: 'planCardsStr', ts: 'planCardsLastModified', current: () => planCardsLastModified },
-                { value: 'flightCardsStr', ts: 'flightCardsLastModified', current: () => flightCardsLastModified },
-                { value: 'infoCardsStr', ts: 'infoCardsLastModified', current: () => infoCardsLastModified },
-                { value: 'listsCardsStr', ts: 'listsCardsLastModified', current: () => listsCardsLastModified },
-                { value: 'travelMembers', ts: 'travelMembersLastModified', current: () => travelMembersLastModified },
-                { value: 'memo', ts: 'memoLastModified', current: () => memoLastModified },
-                { value: 'memoList', ts: 'memoListLastModified', current: () => memoListLastModified },
-                { value: 'titles', ts: 'titlesLastModified', current: () => titlesLastModified }
-            ];
-            let changed = false;
-            timestamped.forEach(({ value, ts, current }) => {
-                const pendingTs = Number(pending[ts] || 0);
-                const currentTs = Number(current() || 0);
-                if (pendingTs && pendingTs < currentTs) {
-                    delete pending[ts];
-                    delete pending[value];
-                    changed = true;
-                }
-            });
-            if (changed) {
-                window._pendingGlobalState = pending;
-            }
-        };
-
         window.queueGlobalStateUpdate = function(partial, delay = 400) {
             try {
                 if (!partial || typeof partial !== 'object') return;
-                const pending = window._pendingGlobalState || {};
-                const timestampedValueMap = {
-                    planCardsStr: 'planCardsLastModified',
-                    flightCardsStr: 'flightCardsLastModified',
-                    infoCardsStr: 'infoCardsLastModified',
-                    listsCardsStr: 'listsCardsLastModified',
-                    travelMembers: 'travelMembersLastModified',
-                    memo: 'memoLastModified',
-                    memoList: 'memoListLastModified',
-                    titles: 'titlesLastModified'
-                };
-                const timestampedTsMap = {
-                    planCardsLastModified: () => planCardsLastModified,
-                    flightCardsLastModified: () => flightCardsLastModified,
-                    infoCardsLastModified: () => infoCardsLastModified,
-                    listsCardsLastModified: () => listsCardsLastModified,
-                    travelMembersLastModified: () => travelMembersLastModified,
-                    memoLastModified: () => memoLastModified,
-                    memoListLastModified: () => memoListLastModified,
-                    titlesLastModified: () => titlesLastModified
-                };
-                const filteredPartial = {};
-                Object.keys(partial).forEach(key => {
-                    const value = partial[key];
-                    if (timestampedTsMap[key]) {
-                        const ts = Number(value || 0);
-                        const currentTs = Number(timestampedTsMap[key]() || 0);
-                        const pendingTs = Number(pending[key] || 0);
-                        if (ts && (ts < currentTs || ts < pendingTs)) {
-                            console.debug('queueGlobalStateUpdate drop stale timestamp', key, ts, { currentTs, pendingTs });
-                            return;
-                        }
-                    }
-                    if (timestampedValueMap[key]) {
-                        const tsKey = timestampedValueMap[key];
-                        const partialTs = Number(partial[tsKey] || 0);
-                        const currentTs = Number(timestampedTsMap[tsKey]() || 0);
-                        const pendingTs = Number(pending[tsKey] || 0);
-                        if (partialTs && (partialTs < currentTs || partialTs < pendingTs)) {
-                            console.debug('queueGlobalStateUpdate drop stale value', key, partialTs, { currentTs, pendingTs });
-                            return;
-                        }
-                    }
-                    filteredPartial[key] = value;
-                });
-                window._pendingGlobalState = Object.assign(window._pendingGlobalState || {}, filteredPartial);
-                window.prunePendingGlobalState();
-                console.debug({op: 'queueGlobalStateUpdate', partial: filteredPartial, pendingSnapshot: window._pendingGlobalState, initialInProgress: !!window._initialCloudRefreshInProgress});
-                // 如果還在初次雲端刷新中，暫不排程寫入，等 fetch 完成會呼叫 flush
-                if (window._initialCloudRefreshInProgress) return;
+                window._pendingGlobalState = Object.assign(window._pendingGlobalState || {}, partial);
                 if (window._globalStateSaveTimer) clearTimeout(window._globalStateSaveTimer);
-                window._globalStateSaveTimer = setTimeout(window.flushPendingGlobalState, Number(delay) || 400);
+                window._globalStateSaveTimer = setTimeout(() => {
+                    try {
+                        if (typeof window.saveGlobalState === 'function') {
+                            window.saveGlobalState(window._pendingGlobalState);
+                        }
+                    } catch (e) {
+                        console.error('queueGlobalStateUpdate flush failed', e);
+                    }
+                    window._pendingGlobalState = {};
+                    window._globalStateSaveTimer = null;
+                }, Number(delay) || 400);
             } catch (e) {
                 console.error('queueGlobalStateUpdate error', e);
             }
@@ -4958,14 +4813,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         const savedMemoListState = loadSyncStorage('korea_memo_list_v1', []);
         memoList = Array.isArray(savedMemoListState.data) ? savedMemoListState.data : [];
         memoListLastModified = savedMemoListState.lastModified;
-        const savedMemoState = loadSyncStorage('korea_memo_v1', '');
-        const legacyMemoValue = String(localStorage.getItem('korea_memo_2026_v3') || '');
-        memo = String(savedMemoState.data || legacyMemoValue || defaultMemo);
-        memoLastModified = Number(savedMemoState.lastModified || 0);
-        if (!memoLastModified && memo && memo.trim() && memo.trim() !== String(defaultMemo || '').trim()) {
-            memoLastModified = Date.now();
-            persistSyncStorage('korea_memo_v1', memo, memoLastModified);
-        }
+        memo = localStorage.getItem('korea_memo_2026_v3') || defaultMemo;
         checklist = safeParseJSON(localStorage.getItem('korea_chk_2026_v7'), defaultChecklist);
         const savedTitlesState = loadSyncStorage('korea_titles_v2', defaultTitles);
         titles = savedTitlesState.data;
@@ -4992,23 +4840,11 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                 await window.fsAuthFns.signInAnonymously(auth);
             }
             
-            window.fsAuthFns.onAuthStateChanged(auth, async user => {
+            window.fsAuthFns.onAuthStateChanged(auth, user => {
                 currentUser = user;
                 if(user) {
                     if (typeof window.startTripProfilesCloudSync === 'function') {
                         window.startTripProfilesCloudSync();
-                    }
-                    window._initialCloudRefreshInProgress = true;
-                    if (typeof window.fetchCurrentTripCloudState === 'function') {
-                        try {
-                            await window.fetchCurrentTripCloudState();
-                        } catch (err) {
-                            console.error('Initial cloud refresh failed', err);
-                        }
-                    }
-                    window._initialCloudRefreshInProgress = false;
-                    if (typeof window.flushPendingGlobalState === 'function') {
-                        window.flushPendingGlobalState();
                     }
                     setupRealtimeListeners();
                 } else {
@@ -5051,137 +4887,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
         window.getTripExpensesCollectionRef = function(tripId = window.getActiveTripIdForCloud()) {
             const safeTripId = String(tripId || 'trip-default');
             return window.fsCollections.collection(db, 'artifacts', appId, 'public', 'data', 'tripStates', safeTripId, 'expenses');
-        };
-
-        window.fetchCurrentTripCloudState = async function() {
-            if (!currentUser || !db) return;
-            window._initialCloudRefreshInProgress = true;
-            if (typeof window.showCloudSyncIndicator === 'function') window.showCloudSyncIndicator(true);
-            try {
-                const globalRef = window.getTripGlobalStateRef(window.getActiveTripIdForCloud());
-                const docSnap = await window.fsCollections.getDoc(globalRef);
-                if (!docSnap.exists()) return;
-                const data = docSnap.data();
-                if (!data || typeof data !== 'object') return;
-
-                let refreshed = false;
-                const cloudPlanTS = getCloudTimestamp(data, 'planCardsLastModified');
-                const cloudFlightTS = getCloudTimestamp(data, 'flightCardsLastModified');
-                const cloudInfoTS = getCloudTimestamp(data, 'infoCardsLastModified');
-                const cloudListsTS = getCloudTimestamp(data, 'listsCardsLastModified');
-
-                if (data.planCardsStr && cloudPlanTS > planCardsLastModified) {
-                    console.debug('fetch apply planCards', {cloudPlanTS, localPlanTS: planCardsLastModified});
-                    planCardsData = safeParseJSON(data.planCardsStr, planCardsData);
-                    planCardsLastModified = cloudPlanTS;
-                    persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
-                    refreshed = true;
-                    try { if (typeof syncCustomNavsWithPlanCards === 'function') syncCustomNavsWithPlanCards(); } catch(e) { console.error('syncCustomNavsWithPlanCards failed (cloud refresh)', e); }
-                }
-                if (data.flightCardsStr && cloudFlightTS > flightCardsLastModified) {
-                    console.debug('fetch apply flightCards', {cloudFlightTS, localFlightTS: flightCardsLastModified});
-                    flightCardsData = safeParseJSON(data.flightCardsStr, flightCardsData);
-                    flightCardsLastModified = cloudFlightTS;
-                    persistCardStorage('korea_flight_v4', flightCardsData, flightCardsLastModified);
-                    refreshed = true;
-                }
-                if (data.infoCardsStr && cloudInfoTS > infoCardsLastModified) {
-                    console.debug('fetch apply infoCards', {cloudInfoTS, localInfoTS: infoCardsLastModified});
-                    infoCardsData = safeParseJSON(data.infoCardsStr, infoCardsData);
-                    infoCardsLastModified = cloudInfoTS;
-                    persistCardStorage('korea_info_v8', infoCardsData, infoCardsLastModified);
-                    refreshed = true;
-                }
-                if (data.listsCardsStr && cloudListsTS > listsCardsLastModified) {
-                    console.debug('fetch apply listsCards', {cloudListsTS, localListsTS: listsCardsLastModified});
-                    listsCardsData = safeParseJSON(data.listsCardsStr, listsCardsData);
-                    listsCardsLastModified = cloudListsTS;
-                    persistCardStorage('korea_lists_v1', listsCardsData, listsCardsLastModified);
-                    if (typeof window.ensureListsCardIds === 'function') window.ensureListsCardIds();
-                    refreshed = true;
-                }
-
-                if (Array.isArray(data.weatherLocs) && weatherLocs.length === 0) {
-                    weatherLocs = normalizeWeatherLocs(data.weatherLocs);
-                    refreshed = true;
-                }
-                if (data.weatherWidgetPlacement && typeof weatherWidgetPlacement === 'object' && !weatherWidgetPlacement.sectionTitleId && !weatherWidgetPlacement.anchorCardId && weatherWidgetPlacement.position === 'after') {
-                    weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
-                    refreshed = true;
-                }
-
-                const cloudTravelMembersTS = getCloudTimestamp(data, 'travelMembersLastModified');
-                if (Array.isArray(data.travelMembers) && cloudTravelMembersTS > travelMembersLastModified) {
-                    travelMembers = data.travelMembers;
-                    travelMembersLastModified = cloudTravelMembersTS;
-                    persistSyncStorage('korea_travel_members_v1', travelMembers, travelMembersLastModified);
-                    refreshed = true;
-                }
-
-                const cloudMemoTS = getCloudTimestamp(data, 'memoLastModified');
-                if (typeof data.memo === 'string') {
-                    const localMemoValue = String(memo || '').trim() === String(defaultMemo || '').trim() ? '' : memo;
-                    console.debug('fetch memo check', {cloudMemoTS, localMemoLastModified: memoLastModified});
-                    if (shouldReplaceLocalWithCloud(memoLastModified, cloudMemoTS, localMemoValue, data.memo)) {
-                        memo = data.memo;
-                        memoLastModified = cloudMemoTS || Date.now();
-                        persistSyncStorage('korea_memo_v1', memo, memoLastModified);
-                        try { localStorage.setItem('korea_memo_2026_v3', memo); } catch (e) { console.warn('memo local save failed', e); }
-                        refreshed = true;
-                    }
-                }
-
-                const cloudMemoListTS = getCloudTimestamp(data, 'memoListLastModified');
-                if (Array.isArray(data.memoList) && cloudMemoListTS > memoListLastModified) {
-                    console.debug('fetch apply memoList', {cloudMemoListTS, localMemoListTS: memoListLastModified});
-                    memoList = data.memoList;
-                    memoListLastModified = cloudMemoListTS;
-                    persistSyncStorage('korea_memo_list_v1', memoList, memoListLastModified);
-                    refreshed = true;
-                }
-                if (Array.isArray(data.checklist) && checklist.length === 0) {
-                    checklist = data.checklist;
-                    refreshed = true;
-                }
-                const cloudTitlesTS = getCloudTimestamp(data, 'titlesLastModified');
-                if (data.titles && cloudTitlesTS > titlesLastModified) {
-                    titles = data.titles;
-                    titlesLastModified = cloudTitlesTS;
-                    persistSyncStorage('korea_titles_v2', titles, titlesLastModified);
-                    refreshed = true;
-                }
-                if (data.customSectionTitlesStr) {
-                    customSectionTitles = normalizeCustomSectionTitles(safeParseJSON(data.customSectionTitlesStr, defaultCustomSectionTitles));
-                    refreshed = true;
-                } else if (data.customSectionTitles) {
-                    customSectionTitles = normalizeCustomSectionTitles(data.customSectionTitles);
-                    refreshed = true;
-                }
-
-                if (refreshed) {
-                    if (typeof window.prunePendingGlobalState === 'function') window.prunePendingGlobalState();
-                    initTitlesUI();
-                    renderCards('plan'); renderCards('flight'); renderCards('info'); renderCards('lists');
-                    try { if (typeof renderCustomNavs === 'function') renderCustomNavs(); } catch(e) { console.error('renderCustomNavs failed (cloud refresh)', e); }
-                    try { if (typeof updateCustomNavButtons === 'function') updateCustomNavButtons(); } catch(e) { console.error('updateCustomNavButtons failed (cloud refresh)', e); }
-                    renderWeatherSettingsList();
-                    renderChecklist();
-                    renderMembersEditList(); renderPayerRadios(); renderSplitMembersCheckboxes();
-                    if (typeof window.renderSectionLockSettings === 'function') window.renderSectionLockSettings();
-                    if(document.getElementById('memo-input') && document.activeElement !== document.getElementById('memo-input')) {
-                        document.getElementById('memo-input').value = memo;
-                        detectLinks();
-                    }
-                }
-            } catch (e) {
-                console.error('fetchCurrentTripCloudState failed', e);
-            } finally {
-                window._initialCloudRefreshInProgress = false;
-                if (typeof window.flushPendingGlobalState === 'function') {
-                    window.flushPendingGlobalState();
-                }
-                if (typeof window.showCloudSyncIndicator === 'function') window.showCloudSyncIndicator(false);
-            }
         };
 
         window.copyLegacyCloudExpensesToTrip = function(tripId) {
@@ -5312,10 +5017,8 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 window.queueGlobalStateUpdate({ listsCardsStr: JSON.stringify(listsCardsData), listsCardsLastModified });
                             }
                         }
-                        if (Array.isArray(data.weatherLocs) && weatherLocs.length === 0) weatherLocs = normalizeWeatherLocs(data.weatherLocs);
-                        if (data.weatherWidgetPlacement && typeof weatherWidgetPlacement === 'object' && !weatherWidgetPlacement.sectionTitleId && !weatherWidgetPlacement.anchorCardId && weatherWidgetPlacement.position === 'after') {
-                            weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
-                        }
+                        if(data.weatherLocs) weatherLocs = normalizeWeatherLocs(data.weatherLocs);
+                        if(data.weatherWidgetPlacement) weatherWidgetPlacement = normalizeWeatherWidgetPlacement(data.weatherWidgetPlacement);
                         const cloudTravelMembersTS = getCloudTimestamp(data, 'travelMembersLastModified');
                         if (Array.isArray(data.travelMembers)) {
                             if (cloudTravelMembersTS > travelMembersLastModified) {
@@ -5326,18 +5029,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 window.queueGlobalStateUpdate({ travelMembers: travelMembers, travelMembersLastModified });
                             }
                         }
-                        const cloudMemoTS = getCloudTimestamp(data, 'memoLastModified');
-                        if (typeof data.memo === 'string') {
-                            const localMemoValue = String(memo || '').trim() === String(defaultMemo || '').trim() ? '' : memo;
-                            if (shouldReplaceLocalWithCloud(memoLastModified, cloudMemoTS, localMemoValue, data.memo)) {
-                                memo = data.memo;
-                                memoLastModified = cloudMemoTS || Date.now();
-                                persistSyncStorage('korea_memo_v1', memo, memoLastModified);
-                                try { localStorage.setItem('korea_memo_2026_v3', memo); } catch (e) { console.warn('memo local save failed', e); }
-                            } else if (shouldPromoteLocalToCloud(memoLastModified, cloudMemoTS, memo) && currentUser) {
-                                window.queueGlobalStateUpdate({ memo: memo, memoLastModified });
-                            }
-                        }
+                        if(data.memo !== undefined) memo = data.memo;
                         const cloudMemoListTS = getCloudTimestamp(data, 'memoListLastModified');
                         if (Array.isArray(data.memoList)) {
                             if (cloudMemoListTS > memoListLastModified) {
@@ -5348,7 +5040,7 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                                 window.queueGlobalStateUpdate({ memoList: memoList, memoListLastModified });
                             }
                         }
-                        if (Array.isArray(data.checklist) && checklist.length === 0) checklist = data.checklist;
+                        if(data.checklist) checklist = data.checklist;
                         const cloudTitlesTS = getCloudTimestamp(data, 'titlesLastModified');
                         if (data.titles) {
                             if (cloudTitlesTS > titlesLastModified) {
@@ -5385,7 +5077,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                             localStorage.setItem('korea_pending_changes_v1', JSON.stringify(window.pendingChanges));
                         }
 
-                        if (typeof window.prunePendingGlobalState === 'function') window.prunePendingGlobalState();
                         initTitlesUI();
                         renderCards('plan'); renderCards('flight'); renderCards('info'); renderCards('lists');
                         try { if (typeof renderCustomNavs === 'function') renderCustomNavs(); } catch(e) { console.error('renderCustomNavs failed (snapshot)', e); }
@@ -5418,7 +5109,6 @@ let customNavs = safeParseJSON(localStorage.getItem('customNavs'), []);
                             checklist: seedSnapshot.checklist || [],
                             memo: seedSnapshot.memo || '',
                             memoList: seedSnapshot.memoList || [],
-                            memoLastModified: nowTs,
                             titles: seedSnapshot.titles || window.deepCloneJSON(defaultTitles, {}),
                             isLocked: !!seedSnapshot.isAppLocked,
                             customSectionTitlesStr: JSON.stringify(normalizeCustomSectionTitles(seedSnapshot.customSectionTitles || defaultCustomSectionTitles))
@@ -7264,35 +6954,32 @@ window.saveTitle = async function(key, val, forceSave) {
                         <div class="${isPlanTab ? 'text-[11px]' : 'text-[10px]'} px-2 py-0.5 rounded mr-3 mt-0.5 border border-black/5 shrink-0 font-bold" style="background-color: ${toHex(item.style)}; color: ${toHex(item.textColor || '#1f2937')};">${item.badge}</div>
                         <div class="flex-1 w-full overflow-hidden">
                             <p class="${isPlanTab ? 'text-xs' : 'text-sm'} font-bold break-words" style="color: ${toHex(item.titleColor || item.textColor || '#111827')};">${item.title}</p>
-                            ${(() => {
-                                const detailHtml = Array.isArray(item.details) && item.details.length ? item.details.map(d => {
-                                    if (d.isLink && d.text) {
-                                        let url = d.text;
-                                        const isNaver = url.includes('naver.com') || url.includes('naver.me');
-                                        const isGoogle = url.includes('google.com') || url.includes('goo.gl');
-                                        if (isNaver && !url.includes('language=')) {
-                                            url += (url.includes('?') ? '&' : '?') + 'language=zh';
-                                        }
-                                        let btnClass = "bg-white/70 text-gray-700 border-gray-300";
-                                        let icon = "<i class='fas fa-link mr-1'></i>";
-                                        if (isNaver) {
-                                            btnClass = "bg-[#03C75A] text-white border-transparent";
-                                            icon = "<i class='fas fa-map-pin mr-1'></i>";
-                                        } else if (isGoogle) {
-                                            btnClass = "bg-[#4285F4] text-white border-transparent";
-                                            icon = "<i class='fab fa-google mr-1'></i>";
-                                        }
-                                        const label = d.linkName || "網址";
-                                        return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold truncate w-fit max-w-full shadow-sm active:scale-95 transition-transform hover:opacity-90">${icon}${label}</a>`;
+							${item.details ? `<div class="mt-1.5 flex flex-wrap gap-1.5">` + item.details.map(d => 
+                                d.isLink && d.text ? (function(){
+                                    let url = d.text;
+                                    const isNaver = url.includes('naver.com') || url.includes('naver.me');
+                                    const isGoogle = url.includes('google.com') || url.includes('goo.gl');
+                                    
+                                    if (isNaver && !url.includes('language=')) {
+                                        url += (url.includes('?') ? '&' : '?') + 'language=zh';
                                     }
-                                    if (d.text) {
-                                        return `<p class="${isPlanTab ? 'text-xs text-gray-800' : 'text-[11px] text-gray-700'} w-full break-words whitespace-pre-wrap mb-0.5">${d.text}</p>`;
+
+                                    let btnClass = "bg-white/70 text-gray-700 border-gray-300";
+                                    let icon = "<i class='fas fa-link mr-1'></i>";
+                                    if (isNaver) {
+                                        btnClass = "bg-[#03C75A] text-white border-transparent";
+                                        icon = "<i class='fas fa-map-pin mr-1'></i>";
+                                    } else if (isGoogle) {
+                                        btnClass = "bg-[#4285F4] text-white border-transparent";
+                                        icon = "<i class='fab fa-google mr-1'></i>";
                                     }
-                                    return '';
-                                }).join('') : '';
-                                return detailHtml ? `<div class="mt-1.5 flex flex-wrap gap-1.5">${detailHtml}</div>` : '';
-                            })()}
-                            </div>
+
+                                    const label = d.linkName || "網址";
+                                    return `<a href="${url}" target="_blank" class="text-[10px] ${btnClass} px-2.5 py-1.5 rounded-lg border inline-flex items-center font-bold truncate w-fit max-w-full shadow-sm active:scale-95 transition-transform hover:opacity-90">${icon}${label}</a>`;
+                                })()
+                                : (d.text ? `<p class="${isPlanTab ? 'text-xs text-gray-800' : 'text-[11px] text-gray-700'} w-full break-words whitespace-pre-wrap mb-0.5">${d.text}</p>` : '')
+                            ).join('') + `</div>` : ''}
+							</div>
                     </div>`).join('') + `</div>`;
             } else if (b.type === 'alert') {
                 return `<div class="p-3 rounded border text-xs flex items-start border-black/5 shadow-sm" style="background-color: ${toHex(b.style)}; color: ${toHex(b.textColor||'#333')};">${b.icon ? `<span class="mr-2 text-base">${b.icon}</span>` : ''}<div class="whitespace-pre-wrap flex-1 leading-relaxed break-words">${b.text}</div></div>`;
@@ -9545,32 +9232,6 @@ window.escapeHtml = function(value) {
         .replace(/'/g, '&#39;');
 };
 
-// 全域逐行文字 diff helper（若已存在則保留現有實作）
-if (typeof window.computeTextDiff !== 'function') {
-    window.computeTextDiff = function(oldStr, newStr) {
-        try {
-            oldStr = oldStr === undefined || oldStr === null ? '' : String(oldStr);
-            newStr = newStr === undefined || newStr === null ? '' : String(newStr);
-            if (oldStr === newStr) return `<div class="text-xs text-gray-600">${window.formatChangeValue ? window.formatChangeValue(newStr) : window.escapeHtml(newStr)}</div>`;
-            const oldLines = oldStr.split(/\r?\n/);
-            const newLines = newStr.split(/\r?\n/);
-            const maxLen = Math.max(oldLines.length, newLines.length);
-            const parts = [];
-            for (let i = 0; i < maxLen; i++) {
-                const o = oldLines[i] || '';
-                const n = newLines[i] || '';
-                if (o === n) {
-                    parts.push(`<div class="text-xs text-gray-700">${window.escapeHtml(o)}</div>`);
-                } else {
-                    if (o) parts.push(`<div class="text-xs text-red-600"><del>${window.escapeHtml(o)}</del></div>`);
-                    if (n) parts.push(`<div class="text-xs text-green-600"><ins>${window.escapeHtml(n)}</ins></div>`);
-                }
-            }
-            return parts.join('');
-        } catch (e) { return `<div class="text-xs text-gray-600">${window.formatChangeValue ? window.formatChangeValue(newStr) : window.escapeHtml(newStr)}</div>`; }
-    };
-}
-
 window.formatSettlementTwd = function(amount) {
     return 'NT$ ' + Math.round(amount || 0).toLocaleString();
 };
@@ -10749,9 +10410,6 @@ window.closeSettlementModal = function() {
             
             window.persistSectionReviewState();
             window.renderPendingChangeList && window.renderPendingChangeList();
-            if (typeof window.flushPendingGlobalState === 'function') {
-                try { window.flushPendingGlobalState(); } catch (e) { console.error('flushPendingGlobalState failed', e); }
-            }
         };
 
         window.openPendingChangesModal = function() {
@@ -11526,12 +11184,12 @@ window.closeSettlementModal = function() {
             if (sourceCards.length === 0 && Array.isArray(defaultPlanCards) && defaultPlanCards.length > 0) {
                 sourceCards = JSON.parse(JSON.stringify(defaultPlanCards));
                 planCardsData = sourceCards;
-                planCardsLastModified = Date.now();
-                persistCardStorage('korea_plan_v6', planCardsData, planCardsLastModified);
+                localStorage.setItem('korea_plan_v6', JSON.stringify(planCardsData));
                 if (typeof window.queueGlobalStateUpdate === 'function') {
-                    window.queueGlobalStateUpdate({ planCardsStr: JSON.stringify(planCardsData), planCardsLastModified });
+                    window.queueGlobalStateUpdate({ planCardsStr: JSON.stringify(planCardsData) });
                 }
             }
+
             let filteredCards = sourceCards;
 			
             const navSource = Array.isArray(customNavs) ? customNavs : [];
@@ -14744,40 +14402,24 @@ window.closeSettlementModal = function() {
         window.generateChangeSummaryText = function(section, change) {
             if (!change || !change.data) return '無詳細資訊';
             const d = change.data || {};
-            const format = window.formatChangeValue;
             switch (change.type) {
-                case 'card_edit': {
-                    if (d.cardId) {
-                        if (d.oldValue !== undefined || d.newValue !== undefined) {
-                            return `編輯卡片：${d.cardId}，${format(d.oldValue)} → ${format(d.newValue || d.content)}`;
-                        }
-                        if (d.content) {
-                            const contentText = d.content.title || d.content.name || d.content.content || d.content;
-                            return `編輯卡片：${d.cardId}，新內容：${format(contentText)}`;
-                        }
-                        return `編輯卡片：${d.cardId}`;
-                    }
-                    return '編輯卡片內容';
-                }
+                case 'card_edit':
+                    return d.cardId ? `編輯卡片：${d.cardId}${d.oldValue !== undefined || d.newValue !== undefined ? `，${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue || d.content)}` : d.content ? `，新內容：${window.formatChangeValue(d.content.title || d.content.name || d.content.content || d.content)}` : ''}` : '編輯卡片內容';
                 case 'card_move':
-                    return `卡片位置調整：${d.cardId || ''} 從 ${format(d.fromIndex)} 至 ${format(d.toIndex)}`;
+                    return `卡片位置調整：${d.cardId || ''} 從 ${window.formatChangeValue(d.fromIndex)} 至 ${window.formatChangeValue(d.toIndex)}`;
                 case 'card_delete':
                     return d.cardId ? `刪除卡片：${d.cardId}` : '刪除卡片';
                 case 'title_edit':
-                    if (d.oldValue !== undefined || d.newValue !== undefined) {
-                        return `標題變更：${format(d.oldValue)} → ${format(d.newValue || d.value)}`;
-                    }
-                    return `標題變更：${format(d.value || d.newValue || '')}`;
+                    if (d.oldValue !== undefined || d.newValue !== undefined) return `標題變更：${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue || d.value)}`;
+                    return `標題變更：${window.formatChangeValue(d.value || d.newValue || '')}`;
                 case 'members_edit':
-                    return `成員列表變更：${Array.isArray(d.travelMembers) ? d.travelMembers.join('、') : format(d.travelMembers)}`;
+                    return `成員列表變更：${Array.isArray(d.travelMembers) ? d.travelMembers.join('、') : window.formatChangeValue(d.travelMembers)}`;
                 case 'memo_update':
-                    return '備忘錄變更';
+                    return `備忘錄變更`;
                 default:
-                    if (d.oldValue !== undefined || d.newValue !== undefined) {
-                        return `變更內容：${format(d.oldValue)} → ${format(d.newValue)}`;
-                    }
-                    if (d.value) return `變更內容：${format(d.value)}`;
-                    if (typeof d.content === 'string') return `內容：${format(d.content)}`;
+                    if (d.oldValue !== undefined || d.newValue !== undefined) return `變更內容：${window.formatChangeValue(d.oldValue)} → ${window.formatChangeValue(d.newValue)}`;
+                    if (d.value) return `變更內容：${window.formatChangeValue(d.value)}`;
+                    if (typeof d.content === 'string') return `內容：${window.formatChangeValue(d.content)}`;
                     return '有變更內容，請點擊查看詳細資訊';
             }
         };
@@ -14872,9 +14514,7 @@ window.closeSettlementModal = function() {
             }
             if (change.status === 'rejected') {
                 rows.push(`<div class="text-xs text-red-700 mb-2">拒絕者：${window.formatChangeValue(change.rejectedBy || '')}` + (change.rejectedAt ? `，時間：${new Date(change.rejectedAt).toLocaleString()}` : '') + `</div>`);
-                if (change.rejectReason) {
-                    rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
-                }
+                if (change.rejectReason) rows.push(`<div class="text-xs text-gray-600 mb-2">拒絕原因：${window.formatChangeValue(change.rejectReason)}</div>`);
             }
             if (d.cardId) rows.push(`<div class="text-xs text-gray-600 mb-2">卡片ID：${window.formatChangeValue(d.cardId)}</div>`);
             if (d.section) rows.push(`<div class="text-xs text-gray-600 mb-2">分區：${window.formatChangeValue(d.section)}</div>`);
@@ -14884,23 +14524,11 @@ window.closeSettlementModal = function() {
             if (change.type === 'card_edit') {
                 rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">變更內容</div>');
                 if (d.oldValue !== undefined || d.newValue !== undefined) {
-                    const oldV = d.oldValue !== undefined ? d.oldValue : '';
-                    const newV = d.newValue !== undefined ? (d.newValue || d.content) : (d.content || '');
-                    if (String(oldV).length > 60 || String(newV).length > 60) {
-                        rows.push(window.computeTextDiff(oldV, newV));
-                    } else {
-                        rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(oldV)}</div>`);
-                        rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(newV)}</div>`);
-                    }
+                    rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(d.oldValue)}</div>`);
+                    rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(d.newValue || d.content)}</div>`);
                 } else if (currentCard && d.content) {
-                    const before = currentCard.title || currentCard.name || currentCard.content || JSON.stringify(currentCard);
-                    const after = d.content.title || d.content.name || d.content.content || d.content;
-                    if (String(before).length > 60 || String(after).length > 60) {
-                        rows.push(window.computeTextDiff(before, after));
-                    } else {
-                        rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(before)}</div>`);
-                        rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(after)}</div>`);
-                    }
+                    rows.push(`<div class="text-xs text-gray-600 mb-1">改前：${window.formatChangeValue(currentCard.title || currentCard.name || currentCard.content || JSON.stringify(currentCard))}</div>`);
+                    rows.push(`<div class="text-xs text-gray-600 mb-1">改後：${window.formatChangeValue(d.content.title || d.content.name || d.content.content || d.content)}</div>`);
                 } else {
                     rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.content)}</div>`);
                 }
@@ -14928,11 +14556,7 @@ window.closeSettlementModal = function() {
                 }
             } else if (change.type === 'memo_update') {
                 rows.push('<div class="text-sm font-bold text-gray-900 mt-3 mb-1">備忘錄變更</div>');
-                if (typeof d.memoList === 'string') {
-                    rows.push(window.computeTextDiff('', d.memoList));
-                } else {
-                    rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.memoList)}</div>`);
-                }
+                rows.push(`<div class="text-xs text-gray-600">${window.formatChangeValue(d.memoList)}</div>`);
             } else {
                 if (d.oldValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改前：${window.formatChangeValue(d.oldValue)}</div>`);
                 if (d.newValue !== undefined) rows.push(`<div class="text-xs text-gray-600">改後：${window.formatChangeValue(d.newValue)}</div>`);
